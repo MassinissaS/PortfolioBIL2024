@@ -1,0 +1,1419 @@
+Sub Automatisation()
+
+    Application.EnableEvents = True
+    
+    Call Etape1
+    Application.OnTime Now + TimeValue("00:00:20"), "ThisWorkbook.Etape2"
+    Application.OnTime Now + TimeValue("00:00:30"), "ThisWorkbook.Etape3"
+
+End Sub
+
+Sub Etape1()
+    
+    Dim derniereL As Integer
+    Dim derniereC As Integer
+    
+    If FeuilleExiste("1.5Passage") Then
+        Sheets("1.5Passage").Delete
+    End If
+    
+    'Stocke dans une variable les numéros de la dernière ligne et de la dernière colonne // OK
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    
+    'S'il n'y a pas de tableau initialement alors  le créer // OK
+    If Not TabExiste(Sheets("1Current")) Then
+        Call CreerTableau(Sheets("1Current"))
+    End If
+        
+    'On  stocke 1 Données dans un onglet de passage // OK
+    Sheets("1Current").Copy Before:=Sheets("2Previous")
+    ActiveSheet.Name = "1.5Passage"
+    
+    Call SupprimerBoutons(Sheets("2Previous"))
+        
+    'On crée un tableau dans l'onglet Passage // OK
+    Call EnleverTableau(Sheets("1.5Passage"))
+    Call CreerTableau(Sheets("1.5Passage"))
+        
+    'On supprime les datas dans l'onglet 1 Données // OK
+    Call SupprimerData(Sheets("1Current"))
+        
+    'On insère la formule Fitch et on copie/colle en valeurs afin de permettre des traitements sur les données // OK
+    Call EnleverTableau(Sheets("1Current"))
+    Sheets("1Current").Activate
+    Call UpdateFitch(Sheets("1Current"))
+
+    
+End Sub
+
+Sub Etape2()
+
+    'Génere le tableau, conserve la taille des colonnes, ajoute les bordures
+
+    Dim derniereL, i, derniereC As Integer
+    Dim colWidths() As Double
+    
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    derniereC = Sheets("1Current").Cells(3, Columns.count).End(xlToLeft).Column
+    
+    ReDim colWidths(3 To derniereC)
+    
+    For i = 3 To derniereC
+        colWidths(i) = Sheets("1Current").Columns(i).ColumnWidth
+    Next
+    
+    Call EnleverTrigger(Sheets("1Current"))
+    Call CopierCollerValeurs(Sheets("1Current"))
+    
+    Sheets("1Current").Range("C3:V" & derniereL).Borders.LineStyle = xlNone
+    
+    Call CreerTableau(Sheets("1Current"))
+    
+    With Sheets("1Current").Range("P3:V" & derniereL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:V" & derniereL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:V3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range("C3:V3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range("C3:V" & derniereL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    Sheets("1Current").Range("C3:V3").Interior.Color = RGB(112, 48, 160)
+    
+    Sheets("1Current").Range("C3:V3").Font.Color = RGB(255, 255, 255)
+        
+    Sheets("1Current").Range("C4:V" & derniereL).HorizontalAlignment = xlLeft
+    
+    For i = 3 To derniereC
+        Sheets("1Current").Columns(i).ColumnWidth = colWidths(i)
+    Next
+
+End Sub
+
+Sub Etape3()
+
+    'Triggers, archivage si nécéssaire, highlight les changement d'un jour sur l'autre
+
+    Dim derniereL As Integer
+    Dim derniereL_C As Integer
+    Dim derniereC As Integer
+    Dim compteur As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim tbl As ListObject
+    Dim tbl_2 As ListObject
+    Dim latest_date_actu As Date
+    Dim latest_date_old As Date
+    Dim derniereUpdate As String
+    
+    compteur = 0
+
+    Set tbl = Sheets("1Current").ListObjects("Tableau_1Current")
+    Set tbl_2 = Sheets("1.5Passage").ListObjects("Tableau_1.5Passage")
+    
+    derniereL = tbl.DataBodyRange.Rows.count
+    derniereC = tbl.DataBodyRange.Columns.count
+    derniereL_C = tbl_2.DataBodyRange.Rows.count
+    
+    latest_date_actu = LatestDate(Sheets("1Current"))
+    latest_date_old = LatestDate(Sheets("1.5Passage"))
+    
+    'Pour chaque ligne du tableau s'il y a un changement de rating entre la version de 1.5Passage et celle de 1Current alors colorier cette cellule en jaune
+    For i = 1 To derniereL
+        For k = 1 To derniereL_C
+            If tbl.DataBodyRange(i, 1) = tbl_2.DataBodyRange(k, 1) Then
+                For j = 2 To derniereC - 7
+                        If tbl.DataBodyRange(i, j) <> tbl_2.DataBodyRange(k, j) Then
+                            tbl.DataBodyRange(i, j).Interior.ColorIndex = 6
+                            compteur = compteur + 1
+                        End If
+                Next j
+            End If
+        Next k
+    Next i
+    
+    Call CalculerNoteMediane
+    
+    'Si la dernière date des CDS de 1Current est plus récente que la dernière date des CDS de 1.5Passage alors l'archive est à réaliser
+    If latest_date_actu > latest_date_old Then
+        MsgBox "New CDS data are available"
+        If compteur > 0 Then
+            If compteur = 1 Then
+                MsgBox "There was " & compteur & " ratings changes"
+            Else
+                MsgBox "There were " & compteur & " ratings changes"
+            End If
+        End If
+        Call SupprimerBoutons(Sheets("1.5Passage"))
+        Call VerifierTrigger(Sheets("1.5Passage"))
+        Call ArchivageOnglet
+        Call SupprimerPage(Sheets("2Previous"))
+        Sheets("1.5Passage").Name = "2Previous"
+    ElseIf latest_date_actu = latest_date_old Then
+        MsgBox "There is no new CDS data available"
+        If compteur > 0 Then
+            If compteur = 1 Then
+                MsgBox "There was " & compteur & " rating change"
+            Else
+                MsgBox "There were " & compteur & " ratings changes"
+            End If
+        End If
+        Call SupprimerPage(Sheets("1.5Passage"))
+        Call VerifierTrigger(Sheets("2Previous"))
+    End If
+    
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    Sheets("1Current").Range("A1").Value = "Last update on : " & derniereUpdate
+    Sheets("1Current").Range("A1").Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Range("A1").Font.Color = RGB(255, 255, 255)
+    Sheets("1Current").Range("A1").Font.Bold = True
+    Sheets("1Current").Range("A1").Font.Size = 9
+    
+    Sheets("1Current").Activate
+    ActiveWindow.FreezePanes = False
+    Range("D1").Select
+    ActiveWindow.FreezePanes = True
+    
+    Call CompterTrigger
+        
+End Sub
+
+Sub CopierCollerValeurs(ws As Worksheet)
+
+    'Copie-colle au même endroit une page afin de contourner la contrainte de Fitch qui renvoie les valeurs dans une matrice, rendant impossible pour l'utilisateur de les modifier
+
+    Application.OnTime Now() + TimeValue("00:00:03"), _
+    "ThisWorkbook.CopierCollerValeurs", , True
+    
+    ActiveWorkbook.RefreshAll
+    
+    If IsEmpty(ws.Range("E4")) = False Then
+        Application.OnTime Now() + TimeValue("00:00:03"), _
+        "ThisWorkbook.CopierCollerValeurs", , False
+        ws.Cells.Select
+        Selection.Copy
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    End If
+
+End Sub
+
+Sub EnleverTableau(ws As Worksheet)
+
+    Dim tbl As ListObject
+
+    For Each tbl In ws.ListObjects
+            tbl.Unlist
+    Next tbl
+
+End Sub
+
+Sub CreerTableau(ws As Worksheet)
+
+    'Crée l'objet tableau pour améliorer la présentation des données
+    
+    Dim rg As Range, derniereLigne As Integer, derniereColonne As Integer
+    
+    derniereLigne = ws.Cells(Rows.count, 3).End(xlUp).Row
+    derniereColonne = ws.Cells(3, Columns.count).End(xlToLeft).Column
+    
+
+    Set rg = ws.Range(Cells(3, 3), Cells(derniereLigne, derniereColonne))
+    ws.ListObjects.Add(xlSrcRange, rg, XlListObjectHasHeaders:=xlYes).Name = "Tableau_" & ws.Name
+    ws.ListObjects("Tableau_" & ws.Name).TableStyle = "TableStyleMedium18"
+    
+    Set rg = Nothing
+    Set ws = Nothing
+    
+End Sub
+
+Sub SupprimerPage(ws As Worksheet)
+    
+    'Supprime la page du nom spécifié
+    
+    With Application
+    .ScreenUpdating = False
+    .DisplayAlerts = False
+    End With
+    
+    ws.Delete
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+End Sub
+
+Sub SupprimerData(ws As Worksheet)
+
+    'Supprime les données dans le tableau de la page au nom spécifié
+    
+    Dim tbl As ListObject
+    
+    For Each tbl In ws.ListObjects
+        tbl.DataBodyRange.Columns(1).Resize(, 32).ClearContents
+    Next tbl
+    
+    Set ws = Nothing
+
+End Sub
+
+Sub UpdateFitch(ws As Worksheet)
+
+    'Nous appelons 3 requêtes Fitch différentes
+    
+    Sheets("1Current").Range("C4").FormulaArray = _
+        "=FC.IfError(FC.ED({""Portfolio!Banks CDS Portfolio""},{""FC_COMPANY_NAME"", ""FC_LT_IDR"", ""FC_LT_IDR_DT"", ""FC_LT_LC_IDR"" , ""FC_LT_LC_IR_DT"", ""FC_LT_FC_ISSR_SP"", ""FC_LT_FC_ISSR_DT_SP"", ""FC_LT_LC_ISSR_SP"", ""FC_LT_LC_ISSR_DT_SP""},,,,,), ""-"")"
+        
+    Sheets("1Current").Range("L4").FormulaArray = _
+        "=FC.IfError(FC.ED({""Portfolio!Banks CDS Portfolio""},{""FC_LT_FC_ISSR_MDY"", ""FC_LT_FC_ISSR_DT_MDY"",""FC_LT_LC_ISSR_MDY"",""FC_LT_LC_ISSR_DT_MDY""},,,,,), ""-"")"
+    
+    Sheets("1Current").Range("R4").FormulaArray = _
+        "=FC.IfError(FC.ED({""Portfolio!Banks CDS Portfolio""},{""FC_IMPLIED_CREDIT_SCORE_CDS_SPOT"",""FC_DATE_CDS""},,,,,), ""-"")"
+        
+End Sub
+
+Function TabExiste(ws As Worksheet) As Boolean
+
+    TabExiste = ws.ListObjects.count > 0
+
+End Function
+
+Sub EnleverSurligneur(ws As Worksheet)
+
+    ws.Cells.Interior.ColorIndex = xlNone
+    
+End Sub
+
+Sub EnleverTrigger(ws As Worksheet)
+
+    'Enlève les triggers hérités de la version précédente
+
+    Range("C4").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+    Range("P4").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+    Range("S4").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+End Sub
+
+Sub CalculerNoteMediane()
+
+    'Etape préliminaire pour permettre de retrouver le Second Best Rating : on convertit chaque note en un nombre
+
+    Dim lastRow As Integer
+    Dim i As Integer
+    Dim notes(1 To 3) As String
+    Dim x As Integer
+    Dim y As Integer
+    Dim z As Integer
+    
+    ' Trouver la dernière ligne de données dans la colonne C
+    lastRow = Sheets("1Current").Cells(Sheets("1Current").Rows.count, "C").End(xlUp).Row
+
+    ' Boucler à travers chaque ligne pour calculer la note médiane
+    For i = 4 To lastRow ' Commencer à 2 en supposant qu'il y a une ligne d'en-tête
+        'notes1 = Moodys
+        If Sheets("1Current").Cells(i, 12).Value <> "-" Then
+            notes(1) = Sheets("1Current").Cells(i, 12).Value
+        Else
+            notes(1) = Sheets("1Current").Cells(i, 14).Value
+        End If
+        
+        'notes2 = Fitch
+        If Sheets("1Current").Cells(i, 4).Value <> "-" Then
+            notes(2) = Sheets("1Current").Cells(i, 4).Value
+        Else
+            notes(2) = Sheets("1Current").Cells(i, 6).Value
+        End If
+           
+        'notes3 = S&P
+        If Sheets("1Current").Cells(i, 8).Value <> "-" Or Sheets("1Current").Cells(i, 11).Value <> "WR" Or Sheets("1Current").Cells(i, 11).Value <> "WR" Then
+            notes(3) = Sheets("1Current").Cells(i, 8).Value
+        Else
+            notes(3) = Sheets("1Current").Cells(i, 10).Value
+        End If
+        
+        'Utiliser une fonction convertirNotation avec Case ?
+        'Moodys
+        If notes(1) = "Aaa" Then
+            x = 22
+        ElseIf notes(1) = "Aa1" Then
+            x = 21
+        ElseIf notes(1) = "Aa2" Then
+            x = 20
+        ElseIf notes(1) = "Aa3" Then
+            x = 19
+        ElseIf notes(1) = "A1" Then
+            x = 18
+        ElseIf notes(1) = "A2" Then
+            x = 17
+        ElseIf notes(1) = "A3" Then
+            x = 16
+        ElseIf notes(1) = "Baa1" Then
+            x = 15
+        ElseIf notes(1) = "Baa2" Then
+            x = 14
+        ElseIf notes(1) = "Ba3" Then
+            x = 13
+        ElseIf notes(1) = "Ba1" Then
+            x = 12
+        ElseIf notes(1) = "Ba2" Then
+            x = 11
+        ElseIf notes(1) = "Ba3" Then
+            x = 10
+        ElseIf notes(1) = "B1" Then
+            x = 9
+        ElseIf notes(1) = "B2" Then
+            x = 8
+        ElseIf notes(1) = "B3" Then
+            x = 7
+        ElseIf notes(1) = "Caa1" Then
+            x = 6
+        ElseIf notes(1) = "Caa2" Then
+            x = 5
+        ElseIf notes(1) = "Caa3" Then
+            x = 4
+        ElseIf notes(1) = "CA" Then
+            x = 3
+        ElseIf notes(1) = "C" Then
+            x = 2
+        ElseIf notes(1) = "WD" Or notes(1) = "NR" Or notes(1) = "-" Or notes(1) = "WR" Then
+            x = 0
+        End If
+        
+        'Fitch
+        If notes(2) = "AAA" Then
+            y = 22
+        ElseIf notes(2) = "AA+" Then
+            y = 21
+        ElseIf notes(2) = "AA" Then
+            y = 20
+        ElseIf notes(2) = "AA-" Then
+            y = 19
+        ElseIf notes(2) = "A+" Then
+            y = 18
+        ElseIf notes(2) = "A" Then
+            y = 17
+        ElseIf notes(2) = "A-" Then
+            y = 16
+        ElseIf notes(2) = "BBB+" Then
+            y = 15
+        ElseIf notes(2) = "BBB" Then
+            y = 14
+        ElseIf notes(2) = "BBB-" Then
+            y = 13
+        ElseIf notes(2) = "BB+" Then
+            y = 12
+        ElseIf notes(2) = "BB" Then
+            y = 11
+        ElseIf notes(2) = "BB-" Then
+            y = 10
+        ElseIf notes(2) = "B+" Then
+            y = 9
+        ElseIf notes(2) = "B" Then
+            y = 8
+        ElseIf notes(2) = "B-" Then
+            y = 7
+        ElseIf notes(2) = "CCC+" Then
+            z = 6
+        ElseIf notes(2) = "CCC" Then
+            z = 5
+        ElseIf notes(2) = "CCC-" Then
+            z = 4
+        ElseIf notes(2) = "CC" Then
+            y = 3
+        ElseIf notes(2) = "C" Then
+            y = 2
+        ElseIf notes(2) = "WD" Or notes(2) = "NR" Or notes(2) = "-" Or notes(2) = "WR" Then
+            y = 0
+        End If
+        
+        'S&P
+        If notes(3) = "AAA" Then
+            z = 22
+        ElseIf notes(3) = "AA+" Then
+            z = 21
+        ElseIf notes(3) = "AA" Then
+            z = 20
+        ElseIf notes(3) = "AA-" Then
+            z = 19
+        ElseIf notes(3) = "A+" Then
+            z = 18
+        ElseIf notes(3) = "A" Then
+            z = 17
+        ElseIf notes(3) = "A-" Then
+            z = 16
+        ElseIf notes(3) = "BBB+" Then
+            z = 15
+        ElseIf notes(3) = "BBB" Then
+            z = 14
+        ElseIf notes(3) = "BBB-" Then
+            z = 13
+        ElseIf notes(3) = "BB+" Then
+            z = 12
+        ElseIf notes(3) = "BB" Then
+            z = 11
+        ElseIf notes(3) = "BB-" Then
+            z = 10
+        ElseIf notes(3) = "B+" Then
+            z = 9
+        ElseIf notes(3) = "B" Then
+            z = 8
+        ElseIf notes(3) = "B-" Then
+            z = 7
+        ElseIf notes(3) = "CCC+" Then
+            z = 6
+        ElseIf notes(3) = "CCC" Then
+            z = 5
+        ElseIf notes(3) = "CCC-" Then
+            z = 4
+        ElseIf notes(3) = "CC" Then
+            z = 3
+        ElseIf notes(3) = "C" Then
+            z = 2
+        ElseIf notes(3) = "WD" Or notes(3) = "NR" Or notes(3) = "-" Or notes(3) = "WR" Then
+            z = 0
+        End If
+        
+        If ChiffreMilieu(x, y, z) = 22 Then
+            Sheets("1Current").Cells(i, 16).Value = "AAA"
+        ElseIf ChiffreMilieu(x, y, z) = 21 Then
+            Sheets("1Current").Cells(i, 16).Value = "AA+"
+        ElseIf ChiffreMilieu(x, y, z) = 20 Then
+            Sheets("1Current").Cells(i, 16).Value = "AA"
+        ElseIf ChiffreMilieu(x, y, z) = 19 Then
+            Sheets("1Current").Cells(i, 16).Value = "AA-"
+        ElseIf ChiffreMilieu(x, y, z) = 18 Then
+            Sheets("1Current").Cells(i, 16).Value = "A+"
+        ElseIf ChiffreMilieu(x, y, z) = 17 Then
+            Sheets("1Current").Cells(i, 16).Value = "A"
+        ElseIf ChiffreMilieu(x, y, z) = 16 Then
+            Sheets("1Current").Cells(i, 16).Value = "A-"
+        ElseIf ChiffreMilieu(x, y, z) = 15 Then
+            Sheets("1Current").Cells(i, 16).Value = "BBB+"
+        ElseIf ChiffreMilieu(x, y, z) = 14 Then
+            Sheets("1Current").Cells(i, 16).Value = "BBB"
+        ElseIf ChiffreMilieu(x, y, z) = 13 Then
+            Sheets("1Current").Cells(i, 16).Value = "BBB-"
+        ElseIf ChiffreMilieu(x, y, z) = 12 Then
+            Sheets("1Current").Cells(i, 16).Value = "BB+"
+        ElseIf ChiffreMilieu(x, y, z) = 11 Then
+            Sheets("1Current").Cells(i, 16).Value = "BB"
+        ElseIf ChiffreMilieu(x, y, z) = 10 Then
+            Sheets("1Current").Cells(i, 16).Value = "BB-"
+        ElseIf ChiffreMilieu(x, y, z) = 9 Then
+            Sheets("1Current").Cells(i, 16).Value = "B+"
+        ElseIf ChiffreMilieu(x, y, z) = 8 Then
+            Sheets("1Current").Cells(i, 16).Value = "B"
+        ElseIf ChiffreMilieu(x, y, z) = 7 Then
+            Sheets("1Current").Cells(i, 16).Value = "B-"
+        ElseIf ChiffreMilieu(x, y, z) = 6 Then
+            Sheets("1Current").Cells(i, 16).Value = "CCC+"
+        ElseIf ChiffreMilieu(x, y, z) = 5 Then
+            Sheets("1Current").Cells(i, 16).Value = "CCC"
+        ElseIf ChiffreMilieu(x, y, z) = 4 Then
+            Sheets("1Current").Cells(i, 16).Value = "CCC-"
+        ElseIf ChiffreMilieu(x, y, z) = 3 Then
+            Sheets("1Current").Cells(i, 16).Value = "CC"
+        ElseIf ChiffreMilieu(x, y, z) = 2 Then
+            Sheets("1Current").Cells(i, 16).Value = "C"
+        ElseIf ChiffreMilieu(x, y, z) = 0 Then
+            Sheets("1Current").Cells(i, 16).Value = "NR"
+        End If
+        
+    Next i
+    
+End Sub
+
+Function ChiffreMilieu(x As Integer, y As Integer, z As Integer) As Integer
+    
+    ' Déclaration des variables
+    Dim num1 As Integer
+    Dim num2 As Integer
+    Dim num3 As Integer
+    Dim temp As Integer
+
+    ' Initialisation des variables
+    num1 = x ' Remplacer par le premier nombre
+    num2 = y  ' Remplacer par le deuxième nombre
+    num3 = z ' Remplacer par le troisième nombre
+
+    ' Tri des nombres
+
+    If num1 = 0 And num2 = 0 Then
+        ChiffreMilieu = num3
+    ElseIf num1 = 0 And num3 = 0 Then
+        ChiffreMilieu = num2
+    ElseIf num2 = 0 And num3 = 0 Then
+        ChiffreMilieu = num1
+    Else
+        If num1 > num2 Then
+            temp = num1
+            num1 = num2
+            num2 = temp
+        End If
+    
+        If num2 > num3 Then
+            temp = num2
+            num2 = num3
+            num3 = temp
+        End If
+    
+        If num1 > num2 Then
+            temp = num1
+            num1 = num2
+            num2 = temp
+        End If
+        
+        ChiffreMilieu = num2
+   End If
+    
+    
+End Function
+
+Sub VerifierTrigger(ws_comp As Worksheet)
+
+    Dim derniereL As Integer
+    Dim derniereC As Integer
+    Dim derniereL_old As Integer
+    Dim i As Integer
+    Dim j As Integer
+        
+    Dim date_cell As Date
+    Dim date_comp As Date
+    Dim date_ajd As Date
+    Dim ajout As Integer
+    Dim nb_jours As Integer
+        
+    Dim second_best As String
+    Dim second_best_num As Integer
+    Dim second_best_old As String
+    Dim second_best_old_num As Integer
+        
+    Dim cds_ics_spot As String
+    Dim cds_ics_spot_num As Integer
+    Dim cds_ics_spot_old As String
+    Dim cds_ics_spot_old_num As Integer
+    
+    Dim delta_second_best As Integer
+    Dim delta_cds_ics_spot As Integer
+        
+    Dim gap_notch As Integer
+    Dim gap_notch_old As Integer
+    Dim delta_gap_notch As Integer
+    
+    Dim count As Integer
+    
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    derniereC = Sheets("1Current").Cells(3, Columns.count).End(xlToLeft).Column
+    derniereL_old = ws_comp.Cells(Rows.count, 3).End(xlUp).Row
+    date_ajd = Format(Now(), "yyyy-mm-dd")
+    
+    For i = 4 To derniereL
+        count = Application.WorksheetFunction.CountIf(Sheets("2Previous").Range("C4:C" & derniereL_old), Sheets("1Current").Cells(i, 3))
+        For j = 4 To derniereL_old
+            If Sheets("1Current").Cells(i, 3).Value = ws_comp.Cells(j, 3).Value Then
+            
+                second_best = Sheets("1Current").Cells(i, 16).Value
+                second_best_old = ws_comp.Cells(j, 16).Value
+            
+                If second_best = "AAA" Then
+                    second_best_num = 22
+                ElseIf second_best = "AA+" Then
+                    second_best_num = 21
+                ElseIf second_best = "AA" Then
+                    second_best_num = 20
+                ElseIf second_best = "AA-" Then
+                    second_best_num = 19
+                ElseIf second_best = "A+" Then
+                    second_best_num = 18
+                ElseIf second_best = "A" Then
+                    second_best_num = 17
+                ElseIf second_best = "A-" Then
+                    second_best_num = 16
+                ElseIf second_best = "BBB+" Then
+                    second_best_num = 15
+                ElseIf second_best = "BBB" Then
+                    second_best_num = 14
+                ElseIf second_best = "BBB-" Then
+                    second_best_num = 13
+                ElseIf second_best = "BB+" Then
+                    second_best_num = 12
+                ElseIf second_best = "BB" Then
+                    second_best_num = 11
+                ElseIf second_best = "BB-" Then
+                    second_best_num = 10
+                ElseIf second_best = "B+" Then
+                    second_best_num = 9
+                ElseIf second_best = "B" Then
+                    second_best_num = 8
+                ElseIf second_best = "B-" Then
+                    second_best_num = 7
+                ElseIf second_best = "CCC+" Then
+                    second_best_num = 6
+                ElseIf second_best = "CCC" Then
+                    second_best_num = 5
+                ElseIf second_best = "CCC-" Then
+                    second_best_num = 4
+                ElseIf second_best = "CC" Then
+                    second_best_num = 3
+                ElseIf second_best = "C" Then
+                    second_best_num = 2
+                ElseIf second_best = "NR" Then
+                    second_best_num = 0
+                End If
+                
+                If second_best_old = "AAA" Then
+                    second_best_old_num = 22
+                ElseIf second_best_old = "AA+" Then
+                    second_best_old_num = 21
+                ElseIf second_best_old = "AA" Then
+                    second_best_old_num = 20
+                ElseIf second_best_old = "AA-" Then
+                    second_best_old_num = 19
+                ElseIf second_best_old = "A+" Then
+                    second_best_old_num = 18
+                ElseIf second_best_old = "A" Then
+                    second_best_old_num = 17
+                ElseIf second_best_old = "A-" Then
+                    second_best_old_num = 16
+                ElseIf second_best_old = "BBB+" Then
+                    second_best_old_num = 15
+                ElseIf second_best_old = "BBB" Then
+                    second_best_old_num = 14
+                ElseIf second_best_old = "BBB-" Then
+                    second_best_old_num = 13
+                ElseIf second_best_old = "BB+" Then
+                    second_best_old_num = 12
+                ElseIf second_best_old = "BB" Then
+                    second_best_old_num = 11
+                ElseIf second_best_old = "BB-" Then
+                    second_best_old_num = 10
+                ElseIf second_best_old = "B+" Then
+                    second_best_old_num = 9
+                ElseIf second_best_old = "B" Then
+                    second_best_old_num = 8
+                ElseIf second_best_old = "B-" Then
+                    second_best_old_num = 7
+                ElseIf second_best_old = "CCC+" Then
+                    second_best_old_num = 6
+                ElseIf second_best_old = "CCC" Then
+                    second_best_old_num = 5
+                ElseIf second_best_old = "CCC-" Then
+                    second_best_old_num = 4
+                ElseIf second_best_old = "CC" Then
+                    second_best_old_num = 3
+                ElseIf second_best_old = "C" Then
+                    second_best_old_num = 2
+                ElseIf second_best_old = "NR" Then
+                    second_best_old_num = 0
+                End If
+                        
+                delta_second_best = second_best_num - second_best_old_num
+                Sheets("1Current").Cells(i, 17).Value = delta_second_best
+                        
+                If Sheets("1Current").Cells(i, 18).Value <> "-" And Sheets("1Current").Cells(i, 19).Value <> "-" Then
+                    date_cell = Sheets("1Current").Cells(i, 19).Value
+                    ajout = 14
+                    date_comp = DateAdd("d", ajout, date_cell)
+                    nb_jours = DateDiff("d", date_ajd, date_comp)
+                    If nb_jours >= 0 Then
+                        If ws_comp.Cells(j, 20).Value <> "Outdated CDS" And ws_comp.Cells(j, 20).Value <> "No info." Then
+                            cds_ics_spot = Sheets("1Current").Cells(i, 18).Value
+                            cds_ics_spot_old = ws_comp.Cells(j, 18).Value
+                            gap_notch_old = ws_comp.Cells(j, 21).Value
+                
+                            If cds_ics_spot = "AAA" Then
+                                cds_ics_spot_num = 22
+                            ElseIf cds_ics_spot = "AA+" Then
+                                cds_ics_spot_num = 21
+                            ElseIf cds_ics_spot = "AA" Then
+                                cds_ics_spot_num = 20
+                            ElseIf cds_ics_spot = "AA-" Then
+                                cds_ics_spot_num = 19
+                            ElseIf cds_ics_spot = "A+" Then
+                                cds_ics_spot_num = 18
+                            ElseIf cds_ics_spot = "A" Then
+                                cds_ics_spot_num = 17
+                            ElseIf cds_ics_spot = "A-" Then
+                                cds_ics_spot_num = 16
+                            ElseIf cds_ics_spot = "BBB+" Then
+                                cds_ics_spot_num = 15
+                            ElseIf cds_ics_spot = "BBB" Then
+                                cds_ics_spot_num = 14
+                            ElseIf cds_ics_spot = "BBB-" Then
+                                cds_ics_spot_num = 13
+                            ElseIf cds_ics_spot = "BB+" Then
+                                cds_ics_spot_num = 12
+                            ElseIf cds_ics_spot = "BB" Then
+                                cds_ics_spot_num = 11
+                            ElseIf cds_ics_spot = "BB-" Then
+                                cds_ics_spot_num = 10
+                            ElseIf cds_ics_spot = "B+" Then
+                                cds_ics_spot_num = 9
+                            ElseIf cds_ics_spot = "B" Then
+                                cds_ics_spot_num = 8
+                            ElseIf cds_ics_spot = "B-" Then
+                                cds_ics_spot_num = 7
+                            ElseIf cds_ics_spot = "CCC+" Then
+                                cds_ics_spot_num = 6
+                            ElseIf cds_ics_spot = "CCC" Then
+                                cds_ics_spot_num = 5
+                            ElseIf cds_ics_spot = "CCC-" Then
+                                cds_ics_spot_num = 4
+                            ElseIf cds_ics_spot = "CC" Then
+                                cds_ics_spot_num = 3
+                            ElseIf cds_ics_spot = "C" Then
+                                cds_ics_spot_num = 2
+                            ElseIf cds_ics_spot = "NR" Then
+                                cds_ics_spot_num = 0
+                            End If
+                                                    
+                            If cds_ics_spot_old = "AAA" Then
+                                cds_ics_spot_old_num = 22
+                            ElseIf cds_ics_spot_old = "AA+" Then
+                                cds_ics_spot_old_num = 21
+                            ElseIf cds_ics_spot_old = "AA" Then
+                                cds_ics_spot_old_num = 20
+                            ElseIf cds_ics_spot_old = "AA-" Then
+                                cds_ics_spot_old_num = 19
+                            ElseIf cds_ics_spot_old = "A+" Then
+                                cds_ics_spot_old_num = 18
+                            ElseIf cds_ics_spot_old = "A" Then
+                                cds_ics_spot_old_num = 17
+                            ElseIf cds_ics_spot_old = "A-" Then
+                                cds_ics_spot_old_num = 16
+                            ElseIf cds_ics_spot_old = "BBB+" Then
+                                cds_ics_spot_old_num = 15
+                            ElseIf cds_ics_spot_old = "BBB" Then
+                                cds_ics_spot_old_num = 14
+                            ElseIf cds_ics_spot_old = "BBB-" Then
+                                cds_ics_spot_old_num = 13
+                            ElseIf cds_ics_spot_old = "BB+" Then
+                                cds_ics_spot_old_num = 12
+                            ElseIf cds_ics_spot_old = "BB" Then
+                                cds_ics_spot_old_num = 11
+                            ElseIf cds_ics_spot_old = "BB-" Then
+                                cds_ics_spot_old_num = 10
+                            ElseIf cds_ics_spot_old = "B+" Then
+                                cds_ics_spot_old_num = 9
+                            ElseIf cds_ics_spot_old = "B" Then
+                                cds_ics_spot_old_num = 8
+                            ElseIf cds_ics_spot_old = "B-" Then
+                                cds_ics_spot_old_num = 7
+                            ElseIf cds_ics_spot_old = "CCC+" Then
+                                cds_ics_spot_old_num = 6
+                            ElseIf cds_ics_spot_old = "CCC" Then
+                                cds_ics_spot_old_num = 5
+                            ElseIf cds_ics_spot_old = "CCC-" Then
+                                cds_ics_spot_old_num = 4
+                            ElseIf cds_ics_spot_old = "CC" Then
+                                cds_ics_spot_old_num = 3
+                            ElseIf cds_ics_spot_old = "C" Then
+                                cds_ics_spot_old_num = 2
+                            ElseIf cds_ics_spot_old = "NR" Then
+                                cds_ics_spot_old_num = 0
+                            End If
+                            
+                            delta_cds_ics_spot = cds_ics_spot_num - cds_ics_spot_old_num
+                            gap_notch = cds_ics_spot_num - second_best_num
+                            delta_gap_notch = gap_notch - gap_notch_old
+                                                        
+                            Sheets("1Current").Cells(i, 20).Value = delta_cds_ics_spot
+                            Sheets("1Current").Cells(i, 21).Value = gap_notch
+                            Sheets("1Current").Cells(i, 22).Value = delta_gap_notch
+                
+                            If delta_cds_ics_spot < 0 And delta_gap_notch < 0 Or delta_second_best < 0 And delta_gap_notch < 0 Then
+                                Sheets("1Current").Range(Cells(i, 3), Cells(i, derniereC)).Interior.ColorIndex = 22
+                            End If
+                            
+                            If delta_cds_ics_spot > 0 And delta_gap_notch > 0 Or delta_second_best > 0 And delta_gap_notch > 0 Then
+                                Sheets("1Current").Range(Cells(i, 3), Cells(i, derniereC)).Interior.Color = RGB(169, 208, 142)
+                            End If
+                        Else
+                            Sheets("1Current").Range(Cells(i, 3), Cells(i, derniereC)).Interior.ColorIndex = 40
+                        End If
+                    Else
+                        If ws_comp.Cells(j, 20).Value <> "Outdated CDS" Then
+                            Sheets("1Current").Range(Cells(i, 3), Cells(i, derniereC)).Interior.ColorIndex = 40
+                        End If
+                        Sheets("1Current").Cells(i, 20).Value = "Outdated CDS"
+                        Sheets("1Current").Cells(i, 21).Value = "Outdated CDS"
+                        Sheets("1Current").Cells(i, 22).Value = "Outdated CDS"
+                    End If
+                Else
+                    Sheets("1Current").Cells(i, 20).Value = "No info."
+                    Sheets("1Current").Cells(i, 21).Value = "No info."
+                    Sheets("1Current").Cells(i, 22).Value = "No info."
+                End If
+            ElseIf count = 0 Then
+                Sheets("1Current").Cells(i, 17).Value = 0
+                Sheets("1Current").Cells(i, 20).Value = 0
+                Sheets("1Current").Cells(i, 22).Value = 0
+                
+                If Sheets("1Current").Cells(i, 18).Value <> "-" And Sheets("1Current").Cells(i, 19).Value <> "-" Then
+                    date_cell = Sheets("1Current").Cells(i, 19).Value
+                    ajout = 14
+                    date_comp = DateAdd("d", ajout, date_cell)
+                    nb_jours = DateDiff("d", date_ajd, date_comp)
+                    If nbJours >= 0 Then
+                        second_best = Sheets("1Current").Cells(i, 16).Value
+                        
+                        If second_best = "AAA" Then
+                            second_best_num = 22
+                        ElseIf second_best = "AA+" Then
+                            second_best_num = 21
+                        ElseIf second_best = "AA" Then
+                            second_best_num = 20
+                        ElseIf second_best = "AA-" Then
+                            second_best_num = 19
+                        ElseIf second_best = "A+" Then
+                            second_best_num = 18
+                        ElseIf second_best = "A" Then
+                            second_best_num = 17
+                        ElseIf second_best = "A-" Then
+                            second_best_num = 16
+                        ElseIf second_best = "BBB+" Then
+                            second_best_num = 15
+                        ElseIf second_best = "BBB" Then
+                            second_best_num = 14
+                        ElseIf second_best = "BBB-" Then
+                            second_best_num = 13
+                        ElseIf second_best = "BB+" Then
+                            second_best_num = 12
+                        ElseIf second_best = "BB" Then
+                            second_best_num = 11
+                        ElseIf second_best = "BB-" Then
+                            second_best_num = 10
+                        ElseIf second_best = "B+" Then
+                            second_best_num = 9
+                        ElseIf second_best = "B" Then
+                            second_best_num = 8
+                        ElseIf second_best = "B-" Then
+                            second_best_num = 7
+                        ElseIf second_best = "CCC+" Then
+                            second_best_num = 6
+                        ElseIf second_best = "CCC" Then
+                            second_best_num = 5
+                        ElseIf second_best = "CCC-" Then
+                            second_best_num = 4
+                        ElseIf second_best = "CC" Then
+                            second_best_num = 3
+                        ElseIf second_best = "C" Then
+                            second_best_num = 2
+                        ElseIf second_best = "NR" Then
+                            second_best_num = 0
+                        End If
+                        
+                        cds_ics_spot = Sheets("1Current").Cells(i, 18).Value
+                        
+                        If cds_ics_spot = "AAA" Then
+                                cds_ics_spot_num = 22
+                        ElseIf cds_ics_spot = "AA+" Then
+                            cds_ics_spot_num = 21
+                        ElseIf cds_ics_spot = "AA" Then
+                            cds_ics_spot_num = 20
+                        ElseIf cds_ics_spot = "AA-" Then
+                            cds_ics_spot_num = 19
+                        ElseIf cds_ics_spot = "A+" Then
+                            cds_ics_spot_num = 18
+                        ElseIf cds_ics_spot = "A" Then
+                            cds_ics_spot_num = 17
+                        ElseIf cds_ics_spot = "A-" Then
+                            cds_ics_spot_num = 16
+                        ElseIf cds_ics_spot = "BBB+" Then
+                            cds_ics_spot_num = 15
+                        ElseIf cds_ics_spot = "BBB" Then
+                            cds_ics_spot_num = 14
+                        ElseIf cds_ics_spot = "BBB-" Then
+                            cds_ics_spot_num = 13
+                        ElseIf cds_ics_spot = "BB+" Then
+                            cds_ics_spot_num = 12
+                        ElseIf cds_ics_spot = "BB" Then
+                            cds_ics_spot_num = 11
+                        ElseIf cds_ics_spot = "BB-" Then
+                            cds_ics_spot_num = 10
+                        ElseIf cds_ics_spot = "B+" Then
+                            cds_ics_spot_num = 9
+                        ElseIf cds_ics_spot = "B" Then
+                            cds_ics_spot_num = 8
+                        ElseIf cds_ics_spot = "B-" Then
+                            cds_ics_spot_num = 7
+                        ElseIf cds_ics_spot = "CCC+" Then
+                            cds_ics_spot_num = 6
+                        ElseIf cds_ics_spot = "CCC" Then
+                            cds_ics_spot_num = 5
+                        ElseIf cds_ics_spot = "CCC-" Then
+                            cds_ics_spot_num = 4
+                        ElseIf cds_ics_spot = "CC" Then
+                            cds_ics_spot_num = 3
+                        ElseIf cds_ics_spot = "C" Then
+                            cds_ics_spot_num = 2
+                        ElseIf cds_ics_spot = "NR" Then
+                            cds_ics_spot_num = 0
+                        End If
+                    
+                        gap_notch = cds_ics_spot_num - second_best_num
+                        Sheets("1Current").Cells(i, 21).Value = gap_notch
+                    Else
+                        Sheets("1Current").Cells(i, 20).Value = "Outdated CDS"
+                        Sheets("1Current").Cells(i, 21).Value = "Outdated CDS"
+                        Sheets("1Current").Cells(i, 22).Value = "Outdated CDS"
+                    End If
+                Else
+                    Sheets("1Current").Cells(i, 20).Value = "No info."
+                    Sheets("1Current").Cells(i, 21).Value = "No info."
+                    Sheets("1Current").Cells(i, 22).Value = "No info."
+                End If
+            End If
+        Next j
+    Next i
+    
+End Sub
+
+Function LatestDate(ws As Worksheet) As Date
+
+    Dim lastRow As Long
+    Dim cell As Range
+
+    ' Find the last row with data in column C
+    lastRow = ws.Cells(ws.Rows.count, 19).End(xlUp).Row
+
+    ' Initialize the latest date to the earliest possible date
+    LatestDate = DateSerial(1900, 1, 1)
+
+    ' Loop through each cell in column C from row 4 to the last row
+    For Each cell In ws.Range("S4:S" & lastRow)
+        If IsDate(cell.Value) Then
+            If cell.Value > LatestDate Then
+                LatestDate = cell.Value
+            End If
+        End If
+    Next cell
+    
+End Function
+
+Function FeuilleExiste(Nom As String) As Boolean
+    
+    Dim sh As Object
+ 
+    For Each sh In Sheets
+        If UCase(sh.Name) = UCase(Nom) Then
+            FeuilleExiste = True
+            Exit For
+        End If
+    Next
+End Function
+
+Sub ArchivageOnglet()
+    
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sheetToCopy As Worksheet
+    Dim destinationPath As String
+    Dim destinationFileName As String
+    Dim latest_date_old As Date
+    Dim copiedSheet As Worksheet
+    Dim latest_date_format As String
+    Dim monthName As String
+    Dim yearName As String
+    Dim fileExists As Boolean
+    
+    latest_date_old = LatestDate(ThisWorkbook.Sheets("1.5Passage"))
+    latest_date_format = Format(latest_date_old, "yyyy-mm-dd")
+    
+    ' Obtenir le nom du mois et de l'année
+    monthName = Format(latest_date_old, "mm")
+    yearName = Format(latest_date_old, "yyyy")
+    
+    ' Spécifiez le chemin du répertoire et le nom du fichier de destination
+        destinationPath = "\\Bnet\shares\CCA\000 - Suivi Dynamique\Archives-Banques-CDS\"
+        destinationFileName = "Archives-Banques-CDS-" & monthName & "-" & yearName & ".xlsx"
+    
+    ' Vérifier si le fichier existe
+    If Dir(destinationPath & destinationFileName) <> "" Then
+        fileExists = True
+    Else
+        fileExists = False
+    End If
+    
+    ' Ouvrir le classeur de destination ou le créer s'il n'existe pas
+    If fileExists Then
+        Set destinationWorkbook = Workbooks.Open(destinationPath & destinationFileName)
+    Else
+        Set destinationWorkbook = Workbooks.Add
+        destinationWorkbook.SaveAs Filename:=destinationPath & destinationFileName
+    End If
+
+    ' Référencez le classeur source et la feuille à copier
+    Set sourceWorkbook = ThisWorkbook  ' Assumant que le code est exécuté à partir du classeur source
+    Set sheetToCopy = sourceWorkbook.Sheets("1.5Passage")  ' Changez ceci pour le nom de la feuille à copier
+
+    ' Copier la feuille dans le classeur de destination
+    sheetToCopy.Copy Before:=destinationWorkbook.Sheets(1)
+    
+    ' Vérifier si un onglet avec le même nom n'existe pas déjà
+    On Error Resume Next
+    Set copiedSheet = destinationWorkbook.Sheets(latest_date_format)
+    On Error GoTo 0
+    
+    If Not copiedSheet Is Nothing Then
+        MsgBox "A tab with the same name already exists", vbExclamation
+        destinationWorkbook.Close SaveChanges:=False
+        Exit Sub
+    End If
+    
+    ' Remplacer le nom de la feuille par la date des CDS
+    Set copiedSheet = destinationWorkbook.Sheets(1)
+    copiedSheet.Name = latest_date_format
+    
+    Call DeleteSheetIfExists(destinationWorkbook, "Sheet1")
+    
+    ' Sauvegarder et fermer le classeur de destination
+    destinationWorkbook.Save
+    destinationWorkbook.Close
+
+    ' Message de confirmation - à supprimer après la phase de test
+    MsgBox "The data has been archived in " & destinationFileName
+    
+End Sub
+
+Sub SupprimerBoutons(ws As Worksheet)
+
+    Dim shp As Shape
+
+    ' Parcourir toutes les formes de la feuille et supprimer les boutons
+    For Each shp In ws.Shapes
+        If shp.Type = msoFormControl Then
+            If shp.FormControlType = xlButtonControl Then
+                shp.Delete
+            End If
+        End If
+    Next shp
+    
+End Sub
+
+Sub CompterTrigger()
+        
+    Dim i, j, k, l, m As Integer
+    Dim derniereUpdate As String
+    Dim nb_trigger As Integer
+    Dim liste_trigger_old As String
+    Dim liste_trigger As String
+    Dim derniereL As Integer
+    Dim derniereLR As Integer
+    Dim latest_date_actu As Date
+    Dim latest_date_format As String
+    Dim monthName As String
+    Dim yearName As String
+    Dim dayName As String
+    Dim latest_date_old As Date
+    Dim latest_date_old_format As String
+    Dim monthName_old As String
+    Dim yearName_old As String
+    Dim dayName_old As String
+    Dim destinationPath As String
+    Dim destinationFileName As String
+    Dim fileExists As Boolean
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sheetToCopy As Worksheet
+    Dim copiedSheet As Worksheet
+    Dim count As Long
+    
+    latest_date_actu = LatestDate(ThisWorkbook.Sheets("1Current"))
+    latest_date_format = Format(latest_date_actu, "yyyy-mm-dd")
+    
+    dayName = Format(latest_date_actu, "dd")
+    monthName = Format(latest_date_actu, "mm")
+    yearName = Format(latest_date_actu, "yyyy")
+    
+    latest_date_old = LatestDate(ThisWorkbook.Sheets("2Previous"))
+    latest_date_old_format = Format(latest_date_old, "yyyy-mm-dd")
+    
+    dayName_old = Format(latest_date_old, "dd")
+    monthName_old = Format(latest_date_old, "mm")
+    yearName_old = Format(latest_date_old, "yyyy")
+    
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    
+    If monthName <> monthName_old Then
+            
+        ' Spécifiez le chemin du répertoire et le nom du fichier de destination
+        destinationPath = "\\Bnet\shares\CCA\000 - Suivi Dynamique\Archives-Banques-CDS\"
+        destinationFileName = "Archives-Banques-CDS-" & monthName_old & "-" & yearName_old & ".xlsx"
+        
+        ' Ouvrir le classeur de destination ou le créer s'il n'existe pas
+        If Dir(destinationPath & destinationFileName) <> "" Then
+            fileExists = True
+        Else
+            fileExists = False
+        End If
+        
+        ' Ouvrir le classeur de destination ou le créer s'il n'existe pas
+        If fileExists Then
+            Set destinationWorkbook = Workbooks.Open(destinationPath & destinationFileName)
+        Else
+            Set destinationWorkbook = Workbooks.Add
+            destinationWorkbook.SaveAs Filename:=destinationPath & destinationFileName
+        End If
+
+        ' Référencez le classeur source et la feuille à copier
+        Set sourceWorkbook = ThisWorkbook  ' Assumant que le code est exécuté à partir du classeur source
+        Set sheetToCopy = sourceWorkbook.Sheets("3Summary")  ' Changez ceci pour le nom de la feuille à copier
+        
+        Call SupprimerBoutons(sourceWorkbook.Sheets("3Summary"))
+
+        ' Copier la feuille dans le classeur de destination
+        sheetToCopy.Copy Before:=destinationWorkbook.Sheets(1)
+    
+        ' Vérifier si un onglet avec le même nom n'existe pas déjà
+        On Error Resume Next
+        Set copiedSheet = destinationWorkbook.Sheets("Review of the month")
+        On Error GoTo 0
+    
+        If Not copiedSheet Is Nothing Then
+            MsgBox "A tab with the same name already exists", vbExclamation
+            destinationWorkbook.Close SaveChanges:=False
+            Exit Sub
+        End If
+    
+        ' Remplacer le nom de la feuille par la date des CDS
+        Set copiedSheet = destinationWorkbook.Sheets(1)
+        copiedSheet.Name = "Summary"
+        
+        ' Sauvegarder et fermer le classeur de destination
+        destinationWorkbook.Save
+        destinationWorkbook.Close
+    
+        ' Message de confirmation - à supprimer après la phase de test
+        MsgBox "The previous month's summary was successfully copied to " & destinationFileName
+        
+        Sheets("3Summary").Range("C4:D200").ClearContents
+        
+        For m = 4 To derniereL
+            Sheets("3Summary").Cells(m, 3).Value = Sheets("1Current").Cells(m, 3).Value
+        Next m
+        
+    End If
+        
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    
+    With Sheets("3Summary").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .Font.Color = RGB(255, 255, 255)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 9
+    End With
+     
+    Sheets("3Summary").Range("C2").Value = "List of triggers activated as of " & latest_date_format & " for the current month"
+    Sheets("3Summary").Range("C2").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C2").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("C2").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("C2").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("C2").Font.Bold = True
+     
+    Sheets("3Summary").Range("C3").Value = "Company Name"
+    Sheets("3Summary").Range("C3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("C3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("C3").HorizontalAlignment = xlLeft
+    Sheets("3Summary").Range("C3").Font.Bold = True
+     
+    Sheets("3Summary").Range("D3").Value = "Details of activated triggers " & Chr(13) & Chr(10) & "(Type : " & ChrW(&H394) & "2nd best, " & ChrW(&H394) & "CDS ICS, " & ChrW(&H394) & "Gap)"
+    Sheets("3Summary").Range("D3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("D3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("D3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("D3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("D3").Font.Bold = True
+     
+    Sheets("3Summary").Range("E3").Value = "Number of negative triggers"
+    Sheets("3Summary").Range("E3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("E3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("E3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("E3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("E3").Font.Bold = True
+    
+    derniereLR = Sheets("3Summary").Cells(Rows.count, 3).End(xlUp).Row
+    
+    'C'est ici qu'on alimente le 3Summary en fonction des triggers activés sur 1Current
+    
+    For j = 4 To derniereL
+        count = Application.WorksheetFunction.CountIf(Sheets("3Summary").Range("C4:C" & derniereLR), Sheets("1Current").Cells(j, 3))
+        If count = 0 Then
+                'Ici on traite le cas où une nouvelle banque est ajouté et qu'elle n'est pas encore dans le Summary
+                Sheets("3Summary").Cells(derniereLR + 1, 3).Value = Sheets("1Current").Cells(j, 3).Value
+                Sheets("3Summary").Cells(derniereLR + 1, 5).Value = 0
+                Sheets("3Summary").Rows(j).Insert Shift:=xlDown
+                Sheets("3Summary").Rows(derniereLR + 2).Copy Destination:=Sheets("3Summary").Rows(j)
+                Sheets("3Summary").Rows(derniereLR + 2).Delete
+                derniereLR = derniereLR + 1
+        Else
+            For k = 4 To derniereLR
+                If Sheets("1Current").Cells(j, 3).Value = Sheets("3Summary").Cells(k, 3).Value Then
+                    nb_trigger = 0
+                    liste_trigger = ""
+                    liste_trigger_old = Sheets("3Summary").Cells(k, 4).Value
+                    Sheets("3Summary").Cells(k, 4).WrapText = True
+                    Sheets("3Summary").Cells(k, 4).ClearContents
+                    If Sheets("1Current").Cells(j, 19).Interior.ColorIndex = 22 Then
+                        If liste_trigger_old <> "" Then
+                            liste_trigger = "Negative : " & Sheets("1Current").Cells(j, 17).Value & ", " & Sheets("1Current").Cells(j, 20).Value & ", " & Sheets("1Current").Cells(j, 22).Value & " on " & latest_date_format & " ; "
+                            'On  vérifie que le trigger activé n'existe pas déjà dans la liste avant de l'ajouter
+                            If InStr(1, liste_trigger_old, liste_trigger) = 0 Then
+                                liste_trigger = liste_trigger_old & Chr(13) & Chr(10) & liste_trigger
+                            End If
+                        ElseIf liste_trigger_old = "" Then
+                            liste_trigger = "Negative : " & Sheets("1Current").Cells(j, 17).Value & ", " & Sheets("1Current").Cells(j, 20).Value & ", " & Sheets("1Current").Cells(j, 22).Value & " on " & latest_date_format & " ; "
+                        End If
+                    ElseIf Sheets("1Current").Cells(j, 19).Interior.Color = RGB(169, 208, 142) Then
+                        If liste_trigger_old <> "" Then
+                            liste_trigger = "Positive : " & Sheets("1Current").Cells(j, 17).Value & ", " & Sheets("1Current").Cells(j, 20).Value & ", " & Sheets("1Current").Cells(j, 22).Value & " on " & latest_date_format & " ; "
+                            'On  vérifie que le trigger activé n'existe pas déjà dans la liste avant de l'ajouter
+                            If InStr(1, liste_trigger_old, liste_trigger) = 0 Then
+                                liste_trigger = liste_trigger_old & Chr(13) & Chr(10) & liste_trigger
+                            End If
+                        ElseIf liste_trigger_old = "" Then
+                            liste_trigger = "Positive : " & Sheets("1Current").Cells(j, 17).Value & ", " & Sheets("1Current").Cells(j, 20).Value & ", " & Sheets("1Current").Cells(j, 22).Value & " on " & latest_date_format & " ; "
+                        End If
+                    Else
+                        liste_trigger = liste_trigger_old
+                    End If
+                    nb_trigger = Len(liste_trigger) - Len(Replace(liste_trigger, "N", ""))
+                    Sheets("3Summary").Cells(k, 4).Value = liste_trigger
+                    Sheets("3Summary").Cells(k, 5).Value = nb_trigger
+                End If
+            Next
+        End If
+    Next
+    
+    'Borders
+    Sheets("3Summary").Range("C2:E" & derniereLR).Borders.LineStyle = xlNone
+    
+    With Sheets("3Summary").Range("C2:E" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C2:E" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:E" & derniereLR).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:E" & derniereLR).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:E" & derniereLR).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C4:E" & derniereLR).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:E3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:E3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C2:E2").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    Sheets("3Summary").Range("C4:E" & derniereLR).Interior.Color = RGB(255, 255, 255)
+    
+    For l = 4 To derniereLR Step 2
+        Sheets("3Summary").Range("C" & l & ":E" & l).Interior.Color = RGB(217, 217, 217)
+    Next l
+            
+    Sheets("3Summary").Activate
+
+End Sub
+
+Sub DeleteSheetIfExists(wb As Workbook, sheetName As String)
+
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = wb.Sheets(sheetName)
+    On Error GoTo 0
+    
+    If Not ws Is Nothing Then
+        Application.DisplayAlerts = False ' Désactiver les alertes pour supprimer la feuille sans confirmation
+        ws.Delete
+        Application.DisplayAlerts = True ' Réactiver les alertes
+    End If
+End Sub
