@@ -1,0 +1,1259 @@
+Sub CopierCollerValeurs(ws As Worksheet)
+
+    'Copie-colle au même endroit une page afin de contourner la contrainte de Fitch qui renvoie les valeurs dans une matrice, rendant impossible pour l'utilisateur de les modifier
+
+    Application.OnTime Now() + TimeValue("00:00:03"), _
+    "ThisWorkbook.CopierCollerValeurs", , True
+    
+    ActiveWorkbook.RefreshAll
+    
+    If IsEmpty(ws.Range("D7")) = False Then
+        Application.OnTime Now() + TimeValue("00:00:03"), _
+        "ThisWorkbook.CopierCollerValeurs", , False
+        ws.Cells.Select
+        Selection.Copy
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    End If
+
+End Sub
+
+Function TabExiste(ws As Worksheet) As Boolean
+
+    TabExiste = ws.ListObjects.count > 0
+
+End Function
+
+Sub CreerTableau(ws As Worksheet)
+
+    'Crée l'objet tableau dans la page spécifiée pour améliorer la présentation des données
+    
+    Dim rg As Range, derniereLigne As Integer, derniereColonne As Integer
+    
+    derniereLigne = ws.Cells(Rows.count, 3).End(xlUp).Row
+    derniereColonne = ws.Cells(3, Columns.count).End(xlToLeft).Column
+    
+
+    Set rg = ws.Range(Cells(3, 3), Cells(derniereLigne, derniereColonne))
+    ws.ListObjects.Add(xlSrcRange, rg, XlListObjectHasHeaders:=xlYes).Name = "Tableau_" & ws.Name
+    ws.ListObjects("Tableau_" & ws.Name).TableStyle = "TableStyleMedium18"
+    ws.Columns.AutoFit
+    
+    Set rg = Nothing
+    Set ws = Nothing
+    
+End Sub
+
+Sub EnleverTableau(ws As Worksheet)
+
+    Dim tbl As ListObject
+
+    For Each tbl In ws.ListObjects
+            tbl.Unlist
+    Next tbl
+
+End Sub
+
+Sub RefreshSource()
+
+    'Récupère les informations à partir d'un LEI
+
+    Dim derL As Integer
+    Dim derniereUpdate As String
+    
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    Sheets("0Source").Range("A1").Value = "Last update on : " & derniereUpdate
+    Sheets("0Source").Range("A1").Interior.Color = RGB(112, 48, 160)
+    Sheets("0Source").Range("A1").Font.Color = RGB(255, 255, 255)
+    Sheets("0Source").Range("A1").Font.Bold = True
+    Sheets("0Source").Range("A1").Font.Size = 11
+    
+    derL = Sheets("0Source").Cells(Rows.count, 3).End(xlUp).Row
+    
+    Range("D4:F" & derL).Clear
+    
+    Sheets("0Source").Range("D4").FormulaArray = _
+        "=FC.IfError(FC.ED(""F!""&C4:C" & derL & ",{""FC_COUNTRY_CD"", ""FC_COUNTRY_NAME"", ""FC_REGION""}), ""-"")"
+        
+    'Borders
+    With Sheets("0Source").Range("C3:L3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:L" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:L" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:L" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:L" & derL).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+     With Sheets("0Source").Range("C3:L" & derL).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    Sheets("0Source").Range("C4:L" & derL).Interior.Color = RGB(255, 255, 255)
+    
+    For j = 4 To derL Step 2
+        Sheets("0Source").Range("C" & j & ":L" & j).Interior.Color = RGB(217, 217, 217)
+    Next j
+    
+End Sub
+
+Sub RatingsExternes1()
+
+    Dim derniereL As Integer
+    Dim derniereC As Integer
+    Dim derniereL_b As Integer
+    Dim i, j As Integer
+    Dim nb_champ As Integer
+    
+    'Stocke dans une variable les numéros de la dernière ligne et de la dernière colonne
+    derniereL = Sheets("0Source").Cells(Rows.count, 4).End(xlUp).Row
+    derniereL_b = Sheets("0Source").Cells(Rows.count, 15).End(xlUp).Row
+    derniereL_C = Sheets("0Source").Cells(Rows.count, 16).End(xlUp).Row
+    nb_champs = Sheets("0Source").Cells(Rows.count, 16).End(xlUp).Row - 8
+
+    If FeuilleExiste("1.5Passage") Then
+        Sheets("1.5Passage").Delete
+    End If
+
+    'S'il n'y a pas de tableau initialement alors  le créer
+    If Not TabExiste(Sheets("1Current")) Then
+        Call CreerTableau(Sheets("1Current"))
+    End If
+    
+    'On  stocke 1 Données dans un onglet de passage
+    Sheets("1Current").Copy Before:=Sheets("2Previous")
+    ActiveSheet.Name = "1.5Passage"
+    
+    'On crée un tableau dans l'onglet Passage
+    Call EnleverTableau(Sheets("1.5Passage"))
+    Call CreerTableau(Sheets("1.5Passage"))
+    
+    'On supprime les datas dans l'onglet1 Données
+    Call SupprimerData(Sheets("1Current"))
+    
+    'On insère la formule Fitch et on copie/colle en valeurs afin de permettre des traitements sur les données
+    Call EnleverTableau(Sheets("1Current"))
+    
+    For i = 4 To derniereL
+        Sheets("1Current").Cells(i, 3).Value = Sheets("0Source").Cells(i, 3).Value
+        Sheets("1Current").Cells(i, 4).Value = Sheets("0Source").Cells(i, 4).Value
+        Sheets("1Current").Cells(i, 5).Value = Sheets("0Source").Cells(i, 5).Value
+        Sheets("1Current").Cells(i, 6).Value = Sheets("0Source").Cells(i, 6).Value
+        Sheets("1Current").Cells(i, 7).Value = Sheets("0Source").Cells(i, 7).Value
+        Sheets("1Current").Cells(i, 11).Value = Sheets("0Source").Cells(i, 8).Value
+        Sheets("1Current").Cells(i, 12).Value = Sheets("0Source").Cells(i, 9).Value
+    Next
+    
+    For j = 4 To derniereL_b
+        Sheets("1Current").Cells(2, j - 1).Value = Sheets("0Source").Cells(j, 16).Value
+        Sheets("1Current").Cells(3, j - 1).Value = Sheets("0Source").Cells(j, 15).Value
+    Next
+    
+    Sheets("1Current").Activate
+    Call UpdateFitch(Sheets("1Current"), nb_champ)
+
+End Sub
+
+Sub RatingsExternes2()
+
+    'Génere le tableau, conserve la taille des colonnes, ajoute les bordures
+    
+    Dim derniereL, derniereC, i As Integer
+    Dim colWidths() As Double
+    
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    derniereC = Sheets("1Current").Cells(3, Columns.count).End(xlToLeft).Column
+    
+    ReDim colWidths(3 To derniereC)
+    
+    For i = 3 To derniereC
+        colWidths(i) = Sheets("1Current").Columns(i).ColumnWidth
+    Next
+    
+    Call EnleverTrigger(Sheets("1Current"))
+    Call CopierCollerValeurs(Sheets("1Current"))
+    
+    Sheets("1Current").Range("C3:N" & derniereL).Borders.LineStyle = xlNone
+    
+    Call CreerTableau(Sheets("1Current"))
+    
+    With Sheets("1Current").Range("C3:N" & derniereL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:N3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range("C3:N" & derniereL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("1Current").Range("C3:N3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+        
+    Sheets("1Current").Range("C4:N" & derniereL).HorizontalAlignment = xlLeft
+
+    Sheets("1Current").Range("A2:CC2").ClearContents
+    
+    For i = 3 To derniereC
+        Sheets("1Current").Columns(i).ColumnWidth = colWidths(i)
+    Next
+
+End Sub
+
+Sub RatingsExternes3()
+
+    Dim derniereL As Integer
+    Dim derniereL_C As Integer
+    Dim derniereC As Integer
+    Dim compteur As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim tbl As ListObject
+    Dim tbl_2 As ListObject
+    Dim derniereUpdate As String
+    Dim currentMonth As String
+    Dim currentYear As String
+    Dim startPos As Integer
+    Dim monthAndYear As String
+    Dim monthName_old As String
+    Dim yearValue_old As String
+    Dim text As String
+    
+    ' Mise à jour de la date
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    Sheets("1Current").Range("A1").Value = "Last update on : " & derniereUpdate
+    Sheets("1Current").Range("A1").Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Range("A1").Font.Color = RGB(255, 255, 255)
+    Sheets("1Current").Range("A1").Font.Bold = True
+    Sheets("1Current").Range("A1").Font.Size = 11
+    
+    ' Obtention du mois et de l'année en cours
+    currentMonth = Format(Now(), "mmmm")
+    currentYear = Year(Now())
+    
+    ' Extraction du mois et de l'année de la cellule C1 dans la feuille "1.5Passage"
+    text = Sheets("1.5Passage").Range("C1").Value
+    startPos = InStr(text, "of :") + Len("of :")
+    monthAndYear = Trim(Mid(text, startPos))
+    monthName_old = Split(monthAndYear)(0)
+    yearValue_old = Split(monthAndYear)(1)
+    
+    ' Fusionner et centrer les cellules C1:D1
+    With Sheets("1Current").Range("C1:D1")
+        .Merge
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = RGB(165, 165, 165)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+    End With
+    
+    ' Mise à jour de la cellule fusionnée avec le mois et l'année en cours
+    Sheets("1Current").Cells(1, 3).Value = "The data concerns the month of : " & currentMonth & " " & currentYear
+    Sheets("1Current").Cells(1, 3).Font.Bold = True
+    Sheets("1Current").Cells(1, 3).Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Cells(1, 3).Font.Color = RGB(255, 255, 255)
+    
+    compteur = 0
+
+    Set tbl = Sheets("1Current").ListObjects("Tableau_1Current")
+    Set tbl_2 = Sheets("1.5Passage").ListObjects("Tableau_1.5Passage")
+    
+    derniereL = tbl.DataBodyRange.Rows.count
+    derniereC = tbl.DataBodyRange.Columns.count
+    derniereL_C = tbl_2.DataBodyRange.Rows.count
+
+    'Comparer Latest_Stmt_Date Tableau_Données avec Latest_Stmt_Date Tableau_Passage
+    For i = 1 To derniereL
+        For k = 1 To derniereL_C
+            If tbl.DataBodyRange(i, 2) = tbl_2.DataBodyRange(k, 2) Then
+                For j = 5 To derniereC - 4
+                    If tbl.DataBodyRange(i, j) <> tbl_2.DataBodyRange(k, j) Then
+                        tbl.DataBodyRange(i, j).Interior.ColorIndex = 6
+                        compteur = compteur + 1
+                    End If
+                Next j
+            End If
+        Next k
+    Next i
+    
+    Call CalculerNoteMediane
+    
+    ' CurrentMonth correspond au mois des CDS de 1Current, monthName_old correspond au mois des CDS de 1.5Passage, si CurrentMonth =/= de monthName_old alors on effectue l'archivage
+    If currentMonth = monthName_old Then
+        If compteur > 0 Then
+            If compteur = 1 Then
+                MsgBox "There was " & compteur & " rating change"
+            Else
+                MsgBox "There were " & compteur & " ratings changes"
+            End If
+        Else
+            MsgBox "There has been no new change"
+        End If
+        Call SupprimerPage(Sheets("1.5Passage"))
+        Call TriggersRatingsExt
+        Call CompterTrigger
+    Else
+        MsgBox "We are in a new month. Data from the previous month will be archived"
+        Call SupprimerBoutons(Sheets("1.5Passage"))
+        Call ArchivageOnglet
+        Call SupprimerPage(Sheets("2Previous"))
+        Sheets("1.5Passage").Name = "2Previous"
+        Call TriggersRatingsExt
+        Call CompterTrigger
+    End If
+        
+End Sub
+
+Sub UpdateFitch(ws As Worksheet, nb_champ As Integer)
+
+    Dim derniereUpdate As String
+    Dim derL As Integer
+    Dim lettreColonne As String
+    
+    lettreColonne = NumToLtr(nb_champ + 10)
+    
+    'MsgBox lettreColonne
+    
+    derL = ws.Cells(Rows.count, 3).End(xlUp).Row
+            
+    ws.Range("H4").FormulaArray = _
+        "=FC.IfError(FC.ED(""F!"" & C4:C" & derL & ", H2:" & lettreColonne & "2), ""-"")"
+    
+End Sub
+
+Function NumToLtr(nb_champ)
+
+    NumToLtr = Split(Cells(1, nb_champ).Address, "$")(1)
+
+End Function
+
+Sub CalculerNoteMediane()
+
+    'Etape préliminaire pour permettre de retrouver le Second Best Rating : on convertit chaque note en un nombre
+
+    Dim lastRow As Integer
+    Dim i As Integer
+    Dim notes(1 To 3) As String
+    Dim x As Integer
+    Dim y As Integer
+    Dim z As Integer
+    Dim j As Integer
+    Dim risk_appetite As String
+    Dim rating As String
+    Dim derLS As Integer
+    
+    ' Trouver la dernière ligne de données dans la colonne B
+    lastRow = Sheets("1Current").Cells(Sheets("1Current").Rows.count, "C").End(xlUp).Row
+    derLS = Sheets("0Source").Cells(Rows.count, 3).End(xlUp).Row
+
+    ' Boucler à travers chaque ligne pour calculer la note médiane
+    For i = 4 To lastRow ' Commencer à 2 en supposant qu'il y a une ligne d'en-tête
+        'notes1 = Fitch
+        notes(1) = Sheets("1Current").Cells(i, 8).Value
+        
+        'notes2 = Moodys
+        notes(2) = Sheets("1Current").Cells(i, 9).Value
+           
+        'notes3 = S&P
+        notes(3) = Sheets("1Current").Cells(i, 10).Value
+        
+        'Utiliser une fonction convertirNotation avec Case ?
+        'Moodys
+        If notes(1) = "Aaa" Then
+            x = 22
+        ElseIf notes(1) = "Aa1" Then
+            x = 21
+        ElseIf notes(1) = "Aa2" Then
+            x = 20
+        ElseIf notes(1) = "Aa3" Then
+            x = 19
+        ElseIf notes(1) = "A1" Then
+            x = 18
+        ElseIf notes(1) = "A2" Then
+            x = 17
+        ElseIf notes(1) = "A3" Then
+            x = 16
+        ElseIf notes(1) = "Baa1" Then
+            x = 15
+        ElseIf notes(1) = "Baa2" Then
+            x = 14
+        ElseIf notes(1) = "Baa3" Then
+            x = 13
+        ElseIf notes(1) = "Ba1" Then
+            x = 12
+        ElseIf notes(1) = "Ba2" Then
+            x = 11
+        ElseIf notes(1) = "Ba3" Then
+            x = 10
+        ElseIf notes(1) = "B1" Then
+            x = 9
+        ElseIf notes(1) = "B2" Then
+            x = 8
+        ElseIf notes(1) = "B3" Then
+            x = 7
+        ElseIf notes(1) = "Caa1" Then
+            x = 6
+        ElseIf notes(1) = "Caa2" Then
+            x = 5
+        ElseIf notes(1) = "Caa3" Then
+            x = 4
+        ElseIf notes(1) = "CA" Then
+            x = 3
+        ElseIf notes(1) = "C" Then
+            x = 2
+        ElseIf notes(1) = "WD" Or notes(1) = "NR" Or notes(1) = "-" Or notes(1) = "WR" Then
+            x = 0
+        End If
+        
+        'Fitch
+        If notes(2) = "AAA" Then
+            y = 22
+        ElseIf notes(2) = "AA+" Then
+            y = 21
+        ElseIf notes(2) = "AA" Then
+            y = 20
+        ElseIf notes(2) = "AA-" Then
+            y = 19
+        ElseIf notes(2) = "A+" Then
+            y = 18
+        ElseIf notes(2) = "A" Then
+            y = 17
+        ElseIf notes(2) = "A-" Then
+            y = 16
+        ElseIf notes(2) = "BBB+" Then
+            y = 15
+        ElseIf notes(2) = "BBB" Then
+            y = 14
+        ElseIf notes(2) = "BBB-" Then
+            y = 13
+        ElseIf notes(2) = "BB+" Then
+            y = 12
+        ElseIf notes(2) = "BB" Then
+            y = 11
+        ElseIf notes(2) = "BB-" Then
+            y = 10
+        ElseIf notes(2) = "B+" Then
+            y = 9
+        ElseIf notes(2) = "B" Then
+            y = 8
+        ElseIf notes(2) = "B-" Then
+            y = 7
+        ElseIf notes(2) = "CCC+" Then
+            y = 6
+        ElseIf notes(2) = "CCC" Then
+            y = 5
+        ElseIf notes(2) = "CCC-" Then
+            y = 4
+        ElseIf notes(2) = "CC" Then
+            y = 3
+        ElseIf notes(2) = "C" Then
+            y = 2
+        ElseIf notes(2) = "WD" Or notes(2) = "NR" Or notes(2) = "-" Or notes(2) = "WR" Then
+            y = 0
+        End If
+        
+        'S&P
+        If notes(3) = "AAA" Then
+            z = 22
+        ElseIf notes(3) = "AA+" Then
+            z = 21
+        ElseIf notes(3) = "AA" Then
+            z = 20
+        ElseIf notes(3) = "AA-" Then
+            z = 19
+        ElseIf notes(3) = "A+" Then
+            z = 18
+        ElseIf notes(3) = "A" Then
+            z = 17
+        ElseIf notes(3) = "A-" Then
+            z = 16
+        ElseIf notes(3) = "BBB+" Then
+            z = 15
+        ElseIf notes(3) = "BBB" Then
+            z = 14
+        ElseIf notes(3) = "BBB-" Then
+            z = 13
+        ElseIf notes(3) = "BB+" Then
+            z = 12
+        ElseIf notes(3) = "BB" Then
+            z = 11
+        ElseIf notes(3) = "BB-" Then
+            z = 10
+        ElseIf notes(3) = "B+" Then
+            z = 9
+        ElseIf notes(3) = "B" Then
+            z = 8
+        ElseIf notes(3) = "B-" Then
+            z = 7
+        ElseIf notes(3) = "CCC+" Then
+            z = 6
+        ElseIf notes(3) = "CCC" Then
+            z = 5
+        ElseIf notes(3) = "CCC-" Then
+            z = 4
+        ElseIf notes(3) = "CC" Then
+            z = 3
+        ElseIf notes(3) = "C" Then
+            z = 2
+        ElseIf notes(3) = "WD" Or notes(3) = "NR" Or notes(3) = "-" Or notes(3) = "WR" Then
+            z = 0
+        End If
+        
+        For j = 4 To derLS
+            If Sheets("1Current").Cells(i, 4).Value = Sheets("0Source").Cells(j, 4).Value Then
+                risk_appetite = Sheets("0Source").Cells(j, 8).Value
+                rating = Sheets("0Source").Cells(j, 9).Value
+            End If
+        Next j
+        
+        If ChiffreMilieu(x, y, z) = 22 Then
+            Sheets("1Current").Cells(i, 13).Value = "AAA"
+        ElseIf ChiffreMilieu(x, y, z) = 21 Then
+            Sheets("1Current").Cells(i, 13).Value = "AA+"
+        ElseIf ChiffreMilieu(x, y, z) = 20 Then
+            Sheets("1Current").Cells(i, 13).Value = "AA"
+        ElseIf ChiffreMilieu(x, y, z) = 19 Then
+            Sheets("1Current").Cells(i, 13).Value = "AA-"
+        ElseIf ChiffreMilieu(x, y, z) = 18 Then
+            Sheets("1Current").Cells(i, 13).Value = "A+"
+        ElseIf ChiffreMilieu(x, y, z) = 17 Then
+            Sheets("1Current").Cells(i, 13).Value = "A"
+        ElseIf ChiffreMilieu(x, y, z) = 16 Then
+            Sheets("1Current").Cells(i, 13).Value = "A-"
+        ElseIf ChiffreMilieu(x, y, z) = 15 Then
+            Sheets("1Current").Cells(i, 13).Value = "BBB+"
+        ElseIf ChiffreMilieu(x, y, z) = 14 Then
+            Sheets("1Current").Cells(i, 13).Value = "BBB"
+        ElseIf ChiffreMilieu(x, y, z) = 13 Then
+            Sheets("1Current").Cells(i, 13).Value = "BBB-"
+        ElseIf ChiffreMilieu(x, y, z) = 12 Then
+            Sheets("1Current").Cells(i, 13).Value = "BB+"
+        ElseIf ChiffreMilieu(x, y, z) = 11 Then
+            Sheets("1Current").Cells(i, 13).Value = "BB"
+        ElseIf ChiffreMilieu(x, y, z) = 10 Then
+            Sheets("1Current").Cells(i, 13).Value = "BB-"
+        ElseIf ChiffreMilieu(x, y, z) = 9 Then
+            Sheets("1Current").Cells(i, 13).Value = "B+"
+        ElseIf ChiffreMilieu(x, y, z) = 8 Then
+            Sheets("1Current").Cells(i, 13).Value = "B"
+        ElseIf ChiffreMilieu(x, y, z) = 7 Then
+            Sheets("1Current").Cells(i, 13).Value = "B-"
+        ElseIf ChiffreMilieu(x, y, z) = 6 Then
+            Sheets("1Current").Cells(i, 13).Value = "CCC+"
+        ElseIf ChiffreMilieu(x, y, z) = 5 Then
+            Sheets("1Current").Cells(i, 13).Value = "CCC"
+        ElseIf ChiffreMilieu(x, y, z) = 4 Then
+            Sheets("1Current").Cells(i, 13).Value = "CCC-"
+        ElseIf ChiffreMilieu(x, y, z) = 3 Then
+            Sheets("1Current").Cells(i, 13).Value = "CC"
+        ElseIf ChiffreMilieu(x, y, z) = 2 Then
+            Sheets("1Current").Cells(i, 13).Value = "C"
+        ElseIf ChiffreMilieu(x, y, z) = 0 Then
+            Sheets("1Current").Cells(i, 13).Value = "NR"
+        End If
+        
+        If risk_appetite = "CORE" Then
+            If rating = "A" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(4, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(5, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(6, 5).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(7, 5).Value
+                End If
+            ElseIf rating = "B" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(4, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(5, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(6, 6).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(7, 6).Value
+                End If
+            ElseIf rating = "C" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(4, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(5, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(6, 7).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(7, 7).Value
+                End If
+            End If
+        ElseIf risk_appetite = "ACTIVE" Then
+            If rating = "A" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(8, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(9, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(10, 5).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(11, 5).Value
+                End If
+            ElseIf rating = "B" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(8, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(9, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(10, 6).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(11, 6).Value
+                End If
+            ElseIf rating = "C" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(8, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(9, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(10, 7).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(11, 7).Value
+                End If
+            End If
+        ElseIf risk_appetite = "KEEP PASSIVE" Then
+            If rating = "A" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(12, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(13, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(14, 5).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(15, 5).Value
+                End If
+            ElseIf rating = "B" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(12, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(13, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(14, 6).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(15, 6).Value
+                End If
+            ElseIf rating = "C" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(12, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(13, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(14, 7).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(15, 7).Value
+                End If
+            End If
+        ElseIf risk_appetite = "EXIT" Then
+            If rating = "A" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(16, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(17, 5).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(18, 5).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(19, 5).Value
+                End If
+            ElseIf rating = "B" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(16, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(17, 6).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(18, 6).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(19, 6).Value
+                End If
+            ElseIf rating = "C" Then
+                If ChiffreMilieu(x, y, z) = 22 Or ChiffreMilieu(x, y, z) = 21 Or ChiffreMilieu(x, y, z) = 20 Or ChiffreMilieu(x, y, z) = 19 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(16, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 18 Or ChiffreMilieu(x, y, z) = 17 Or ChiffreMilieu(x, y, z) = 16 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(17, 7).Value
+                ElseIf ChiffreMilieu(x, y, z) = 15 Or ChiffreMilieu(x, y, z) = 14 Or ChiffreMilieu(x, y, z) = 13 Then
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(18, 7).Value
+                Else
+                    Sheets("1Current").Cells(i, 14).Value = Sheets("4CountriesFramework").Cells(19, 7).Value
+                End If
+            End If
+        End If
+    Next i
+    
+End Sub
+
+Function ChiffreMilieu(x As Integer, y As Integer, z As Integer) As Integer
+    
+    ' Déclaration des variables
+    Dim num1 As Integer
+    Dim num2 As Integer
+    Dim num3 As Integer
+    Dim temp As Integer
+
+    ' Initialisation des variables
+    num1 = x ' Remplacer par le premier nombre
+    num2 = y  ' Remplacer par le deuxième nombre
+    num3 = z ' Remplacer par le troisième nombre
+
+    ' Tri des nombres
+
+    If num1 = 0 And num2 = 0 Then
+        ChiffreMilieu = num3
+    ElseIf num1 = 0 And num3 = 0 Then
+        ChiffreMilieu = num2
+    ElseIf num2 = 0 And num3 = 0 Then
+        ChiffreMilieu = num1
+    Else
+        If num1 > num2 Then
+            temp = num1
+            num1 = num2
+            num2 = temp
+        End If
+    
+        If num2 > num3 Then
+            temp = num2
+            num2 = num3
+            num3 = temp
+        End If
+    
+        If num1 > num2 Then
+            temp = num1
+            num1 = num2
+            num2 = temp
+        End If
+        
+        ChiffreMilieu = num2
+   End If
+    
+End Function
+
+Sub TriggersRatingsExt()
+    
+    Dim derLR, i, j As Integer
+    Dim derC As Integer
+    Dim rt_actu, rt_old As String
+    Dim lim_actu, lim_old As String
+    
+    derLR = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+    derC = Sheets("1Current").Cells(3, Columns.count).End(xlToLeft).Column
+    compteur1 = 0
+    compteur2 = 0
+    compteur3 = 0
+    
+    For i = 4 To derLR
+        rt_actu = Sheets("1Current").Cells(i, 13).Value
+        lim_actu = Sheets("1Current").Cells(i, 14).Value
+        rt_old = Sheets("2Previous").Cells(i, 13).Value
+        lim_old = Sheets("2Previous").Cells(i, 14).Value
+        
+        'Vérifier si il y a eu un changement de 2nd best rating
+        If StrComp(rt_actu, rt_old) <> 0 Then
+            If lim_actu < lim_old Then 'Cas où la limite actuelle est inférieure à la limite précédente = ROUGE
+                Sheets("1Current").Range(Cells(i, 3), Cells(i, derC)).Interior.ColorIndex = 22
+            ElseIf lim_actu > lim_old Then 'Cas où la limite actuelle est supérieure à la limite précédente = VERT
+                Sheets("1Current").Range(Cells(i, 3), Cells(i, derC)).Interior.Color = RGB(169, 208, 142)
+            Else 'Cas où il y a eu un changement de 2nd best rating, sans que ça ait eu d'incidence sur la limite = Orange
+                Sheets("1Current").Range(Cells(i, 3), Cells(i, derC)).Interior.Color = RGB(244, 176, 132)
+            End If
+        End If
+    Next
+    
+End Sub
+
+Function FeuilleExiste(Nom As String) As Boolean
+    
+    Dim sh As Object
+ 
+    For Each sh In Sheets
+        If UCase(sh.Name) = UCase(Nom) Then
+            FeuilleExiste = True
+            Exit For
+        End If
+    Next
+    
+End Function
+
+Sub SupprimerData(ws As Worksheet)
+    
+    Dim tbl As ListObject
+    
+    For Each tbl In ws.ListObjects
+        tbl.DataBodyRange.Columns(1).Resize(, 32).ClearContents
+    Next tbl
+    
+    Set ws = Nothing
+
+End Sub
+
+Sub EnleverTrigger(ws As Worksheet)
+
+    ws.Range("C4:CM300").Interior.Pattern = xlNone
+    ws.Range("C4:CM300").Interior.TintAndShade = 0
+    ws.Range("C4:CM300").Interior.PatternTintAndShade = 0
+    
+End Sub
+
+Sub SupprimerPage(ws As Worksheet)
+    
+    With Application
+    .ScreenUpdating = False
+    .DisplayAlerts = False
+    End With
+    
+    ws.Delete
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+End Sub
+
+Sub CompterTrigger()
+        
+    Dim i, j, k, m, n, o As Integer
+    Dim derniereUpdate As String
+    Dim nb_trigger As Integer
+    Dim liste_trigger_old As String
+    Dim liste_trigger As String
+    Dim derniereL As Integer
+    Dim derniereLR As Integer
+    Dim derniereLP As Integer
+    Dim latest_date_actu As Date
+    Dim latest_date_format As String
+    Dim monthName As String
+    Dim monthName_b As String
+    Dim yearName As String
+    Dim dayName As String
+    Dim latest_date_old As Date
+    Dim latest_date_old_format As String
+    Dim monthName_old As String
+    Dim yearName_old As String
+    Dim dayName_old As String
+    Dim destinationPath As String
+    Dim destinationFileName As String
+    Dim fileExists As Boolean
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sheetToCopy As Worksheet
+    Dim copiedSheet As Worksheet
+    Dim position As Integer
+    Dim count As Integer
+    Dim text As String
+    Dim monthAndYear As String
+    Dim startPos As Integer
+    
+    ' Obtenir le nom du mois et de l'année
+    text = Sheets("1Current").Range("C1").Value
+    startPos = InStr(text, "of :") + Len("of :")
+    monthAndYear = Trim(Mid(text, startPos))
+    monthName_b = Split(monthAndYear)(0)
+    
+    latest_date_format = Format(Now, "yyyy-mm-dd")
+    
+    dayName = Format(latest_date_actu, "dd")
+    monthName = Format(latest_date_actu, "mm")
+    yearName = Format(latest_date_actu, "yyyy")
+    
+    derniereL = Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+        
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    
+    With Sheets("3Summary").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 11
+    End With
+    
+    Sheets("3Summary").Range("A1").Font.Color = RGB(255, 255, 255)
+     
+    Sheets("3Summary").Range("C2").Value = "List of triggers activated as of " & latest_date_format & " for the current year"
+    Sheets("3Summary").Range("C2").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C2").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("C2").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("C2").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("C2").Font.Bold = True
+     
+    Sheets("3Summary").Range("C3").Value = "Country Name"
+    Sheets("3Summary").Range("C3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("C3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("C3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("C3").Font.Bold = True
+     
+    Sheets("3Summary").Range("D3").Value = "Details of activated triggers "
+    Sheets("3Summary").Range("D3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("D3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("D3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("D3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("D3").Font.Bold = True
+     
+    Sheets("3Summary").Range("E3").Value = "Number of negative triggers"
+    Sheets("3Summary").Range("E3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("E3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("E3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("E3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("E3").Font.Bold = True
+    
+    Sheets("3Summary").Range("F3").Value = "Latest Review"
+    Sheets("3Summary").Range("F3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("F3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("F3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("F3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("F3").Font.Bold = True
+    
+    Sheets("3Summary").Range("G3").Value = "Preferential Treatment"
+    Sheets("3Summary").Range("G3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("G3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("G3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("G3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("G3").Font.Bold = True
+    
+    Sheets("3Summary").Range("H3").Value = "BRC Limits (EURm)"
+    Sheets("3Summary").Range("H3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("H3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("H3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("H3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("H3").Font.Bold = True
+    
+    For i = 4 To derniereL
+        Sheets("3Summary").Cells(i, 3).Value = Sheets("0Source").Cells(i, 5).Value
+        Sheets("3Summary").Cells(i, 6).Value = Sheets("0Source").Cells(i, 10).Value
+        Sheets("3Summary").Cells(i, 7).Value = Sheets("0Source").Cells(i, 11).Value
+        Sheets("3Summary").Cells(i, 8).Value = Sheets("0Source").Cells(i, 12).Value
+    Next
+    
+    derniereLR = Sheets("3Summary").Cells(Rows.count, 3).End(xlUp).Row
+    derniereLP = Sheets("2Previous").Cells(Rows.count, 3).End(xlUp).Row
+    
+    'C'est ici qu'on alimente le 3Summary en fonction des triggers activés sur 1Current
+    
+    For j = 4 To derniereL
+        count = Application.WorksheetFunction.CountIf(Sheets("3Summary").Range("C4:C" & derniereLR), Sheets("1Current").Cells(j, 5))
+        If count = 0 Then
+                Sheets("3Summary").Cells(derniereLR + 1, 3).Value = Sheets("1Current").Cells(j, 5).Value
+                Sheets("3Summary").Cells(derniereLR + 1, 5).Value = 0
+                Sheets("3Summary").Rows(j).Insert Shift:=xlDown
+                Sheets("3Summary").Rows(derniereLR + 2).Copy Destination:=Sheets("3Summary").Rows(j)
+                Sheets("3Summary").Rows(derniereLR + 2).Delete
+                derniereLR = derniereLR + 1
+        End If
+        For k = 4 To derniereLR
+            If Sheets("1Current").Cells(j, 5).Value = Sheets("3Summary").Cells(k, 3).Value Then
+                nb_trigger = 0
+                liste_trigger = ""
+                liste_trigger_old = Sheets("3Summary").Cells(k, 4).Value
+                Sheets("3Summary").Cells(k, 4).WrapText = True
+                Sheets("3Summary").Cells(k, 4).ClearContents
+                If Sheets("1Current").Cells(j, 4).Interior.ColorIndex = 22 Then
+                        For m = 4 To derniereLP
+                            If Sheets("1Current").Cells(j, 4).Value = Sheets("2Previous").Cells(m, 4).Value Then
+                                If liste_trigger_old <> "" Then
+                                    liste_trigger = "Negative : The second best went from " & Sheets("2Previous").Cells(m, 13).Value & " (limit : " & Sheets("2Previous").Cells(m, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                                    
+                                    If InStr(1, liste_trigger_old, liste_trigger) = 0 Then
+                                        liste_trigger = liste_trigger_old & Chr(13) & Chr(10) & liste_trigger
+                                    End If
+                                ElseIf liste_trigger_old = "" Then
+                                    liste_trigger = "Negative : The second best went from " & Sheets("2Previous").Cells(m, 13).Value & " (limit : " & Sheets("2Previous").Cells(m, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                                End If
+                            End If
+                        Next m
+                ElseIf Sheets("1Current").Cells(j, 4).Interior.Color = RGB(169, 208, 142) Then
+                    For n = 4 To derniereLP
+                        If Sheets("1Current").Cells(j, 4).Value = Sheets("2Previous").Cells(n, 4).Value Then
+                            If liste_trigger_old <> "" Then
+                                liste_trigger = "Positive : The second best went from " & Sheets("2Previous").Cells(n, 13).Value & " (limit : " & Sheets("2Previous").Cells(n, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                                
+                                If InStr(1, liste_trigger_old, liste_trigger) = 0 Then
+                                    liste_trigger = liste_trigger_old & Chr(13) & Chr(10) & liste_trigger
+                                End If
+                            ElseIf liste_trigger_old = "" Then
+                                liste_trigger = "Positive : The second best went from " & Sheets("2Previous").Cells(n, 13).Value & " (limit : " & Sheets("2Previous").Cells(n, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                            End If
+                        End If
+                    Next n
+                ElseIf Sheets("1Current").Cells(j, 4).Interior.Color = RGB(244, 176, 132) Then
+                    For o = 4 To derniereLP
+                        If Sheets("1Current").Cells(j, 4).Value = Sheets("2Previous").Cells(o, 4).Value Then
+                            If liste_trigger_old <> "" Then
+                                liste_trigger = "Rating change : The second best went from " & Sheets("2Previous").Cells(o, 13).Value & " (limit : " & Sheets("2Previous").Cells(o, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                                
+                                If InStr(1, liste_trigger_old, liste_trigger) = 0 Then
+                                    liste_trigger = liste_trigger_old & Chr(13) & Chr(10) & liste_trigger
+                                End If
+                            ElseIf liste_trigger_old = "" Then
+                                liste_trigger = "Rating change : The second best went from " & Sheets("2Previous").Cells(o, 13).Value & " (limit : " & Sheets("2Previous").Cells(o, 14).Value & "EURbn) to " & Sheets("1Current").Cells(j, 13).Value & " (limit : " & Sheets("1Current").Cells(j, 14).Value & "EURbn) in " & monthName_b & " ; "
+                            End If
+                        End If
+                    Next o
+                Else
+                    liste_trigger = liste_trigger_old
+                End If
+                
+                Sheets("3Summary").Cells(k, 4).Value = liste_trigger
+                
+                position = InStr(1, Sheets("3Summary").Cells(k, 4).Value, "Negative", vbTextCompare)
+                
+                Do While position > 0
+                    nb_trigger = nb_trigger + 1
+                    position = InStr(position + Len("Negative"), Sheets("3Summary").Cells(k, 4).Value, "Negative", vbTextCompare)
+                Loop
+                
+                Sheets("3Summary").Cells(k, 5).Value = nb_trigger
+                
+            End If
+        Next k
+    Next j
+    
+    Sheets("3Summary").Range("C2:H" & derniereLR).Borders.LineStyle = xlNone
+    
+    With Sheets("3Summary").Range("C2:H" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C2:H" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:H" & derniereLR).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:H" & derniereLR).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C2:H" & derniereLR).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C4:H" & derniereLR).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:H3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:H3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C2:H2").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    Sheets("3Summary").Range("C4:H" & derniereLR).Interior.Color = RGB(255, 255, 255)
+    
+    For l = 4 To derniereLR Step 2
+        Sheets("3Summary").Range("C" & l & ":H" & l).Interior.Color = RGB(217, 217, 217)
+    Next l
+            
+    Sheets("3Summary").Activate
+
+End Sub
+
+Sub Automatisation()
+    
+    Application.OnTime Now + TimeValue("00:00:01"), "ThisWorkbook.RatingsExternes1"
+    Application.OnTime Now + TimeValue("00:00:10"), "ThisWorkbook.RatingsExternes2"
+    Application.OnTime Now + TimeValue("00:00:15"), "ThisWorkbook.RatingsExternes3"
+
+End Sub
+
+Sub ArchivageOnglet()
+
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sheetToCopy As Worksheet
+    Dim summaryToCopy As Worksheet
+    Dim destinationPath As String
+    Dim destinationFileName As String
+    Dim copiedSheet As Worksheet
+    Dim copiedSummary As Worksheet
+    Dim fileExists As Boolean
+    Dim startPos As Integer
+    Dim monthAndYear As String
+    Dim monthName_old As String
+    Dim yearValue_old As String
+    Dim text As String
+    Dim m As Integer
+    Dim derniereL As Integer
+    
+    ' Obtenir le nom du mois et de l'année
+    text = Sheets("1.5Passage").Range("C1").Value
+    startPos = InStr(text, "of :") + Len("of :")
+    monthAndYear = Trim(Mid(text, startPos))
+    monthName_old = Split(monthAndYear)(0)
+    yearValue_old = Split(monthAndYear)(1)
+    
+    ' Spécifiez le chemin du répertoire et le nom du fichier de destination
+    destinationPath = "\\Bnet\shares\CCA\000 - Suivi Dynamique\Archives-Souverains-Ratings\"
+    destinationFileName = "Archives-Souverains-Ratings-" & yearValue_old & ".xlsx"
+    
+    ' Vérifier si le fichier existe
+    If Dir(destinationPath & destinationFileName) <> "" Then
+        fileExists = True
+    Else
+        fileExists = False
+    End If
+    
+    ' Ouvrir le classeur de destination ou le créer s'il n'existe pas
+    If fileExists Then
+        Set destinationWorkbook = Workbooks.Open(destinationPath & destinationFileName)
+    Else
+        Set destinationWorkbook = Workbooks.Add
+        destinationWorkbook.SaveAs Filename:=destinationPath & destinationFileName
+    End If
+
+    ' Référencez le classeur source et la feuille à copier
+    Set sourceWorkbook = ThisWorkbook  ' Assumant que le code est exécuté à partir du classeur source
+    Set sheetToCopy = sourceWorkbook.Sheets("1.5Passage")  ' Changez ceci pour le nom de la feuille à copier
+
+    ' Copier la feuille dans le classeur de destination
+    sheetToCopy.Copy Before:=destinationWorkbook.Sheets(1)
+    
+    ' Vérifier si un onglet avec le même nom n'existe pas déjà
+    On Error Resume Next
+    Set copiedSheet = destinationWorkbook.Sheets(monthName_old & " " & yearValue_old)
+    On Error GoTo 0
+    
+    If Not copiedSheet Is Nothing Then
+        MsgBox "A tab with the same name already exists", vbExclamation
+        destinationWorkbook.Close SaveChanges:=False
+        Exit Sub
+    End If
+    
+    ' Remplacer le nom de la feuille par la date des CDS
+    Set copiedSheet = destinationWorkbook.Sheets(1)
+    copiedSheet.Name = monthName_old & " " & yearValue_old
+    
+    ' Si on est en décembre alors copier le summary de l'année
+    If monthName_old = "December" Then
+        
+        derniereL = sourceWorkbook.Sheets("1Current").Cells(Rows.count, 3).End(xlUp).Row
+        
+        Set summaryToCopy = sourceWorkbook.Sheets("3Summary")
+        summaryToCopy.Copy Before:=destinationWorkbook.Sheets(1)
+        On Error Resume Next
+        Set copiedSummary = destinationWorkbook.Sheets("Summary")
+        On Error GoTo 0
+        If Not copiedSummary Is Nothing Then
+            MsgBox "A tab with the same name already exists", vbExclamation
+            destinationWorkbook.Close SaveChanges:=False
+        End If
+        Set copiedSummary = destinationWorkbook.Sheets(1)
+        copiedSummary.Name = "Summary"
+        
+        sourceWorkbook.Sheets("3Summary").Range("C4:E300").ClearContents
+        
+        For m = 4 To derniereL
+            sourceWorkbook.Sheets("3Summary").Cells(m, 3).Value = sourceWorkbook.Sheets("1Current").Cells(m, 4).Value
+        Next m
+        
+    End If
+    
+    Call DeleteSheetIfExists(destinationWorkbook, "Sheet1")
+    
+    ' Sauvegarder et fermer le classeur de destination
+    destinationWorkbook.Save
+    destinationWorkbook.Close
+
+    ' Message de confirmation - à supprimer après la phase de test
+    MsgBox "The data has been archived in " & destinationFileName
+
+
+End Sub
+
+Sub SupprimerBoutons(ws As Worksheet)
+
+    Dim shp As Shape
+
+    ' Parcourir toutes les formes de la feuille et supprimer les boutons
+    For Each shp In ws.Shapes
+        If shp.Type = msoFormControl Then
+            If shp.FormControlType = xlButtonControl Then
+                shp.Delete
+            End If
+        End If
+    Next shp
+    
+End Sub
+
+Sub DeleteSheetIfExists(wb As Workbook, sheetName As String)
+
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = wb.Sheets(sheetName)
+    On Error GoTo 0
+    
+    If Not ws Is Nothing Then
+        Application.DisplayAlerts = False ' Désactiver les alertes pour supprimer la feuille sans confirmation
+        ws.Delete
+        Application.DisplayAlerts = True ' Réactiver les alertes
+    End If
+End Sub
