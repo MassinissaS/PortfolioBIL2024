@@ -1,0 +1,208 @@
+Option Explicit
+Public param_vue_perso As String
+Public param_choix_portefeuille As String
+Public dictBanques As Scripting.Dictionary
+Public Itemsselected As String
+Public Itemsselected_2 As String
+Public derniereL As Integer
+Public param_date As String
+Public param_acc_standard As String
+Public param_consolidation As String
+Public Etat As Integer
+
+Sub DebutUserForm()
+
+    Application.ScreenUpdating = False
+    
+    Call ViderTableau
+    Call CreationDictionnaireBq
+    
+    Menu0.Show
+
+End Sub
+
+Sub CreationDictionnaireBq()
+
+    'Associe à chaque banque une clé correspondant à son LEI
+
+    On Error Resume Next
+
+    Dim derniereL_dico As Integer
+    Dim i As Integer
+    
+    Set dictBanques = Nothing
+    Set dictBanques = New Scripting.Dictionary
+    
+    derniereL_dico = Sheets("0Source").Cells(Rows.Count, 5).End(xlUp).Row
+    
+    For i = 3 To derniereL_dico
+        dictBanques.Add Sheets("0Source").Cells(i, 5).Value, Sheets("0Source").Cells(i, 3).Value
+    Next i
+
+End Sub
+
+Sub ViderTableau()
+
+    Worksheets("1Datas").Range("C1:CE3000").Clear
+    Call EnleverTableau(Sheets("1Datas"))
+
+End Sub
+
+Sub RefreshSource()
+
+    Call CopierCollerValeurs(Sheets("0Source"))
+
+    Dim derLC As Integer
+    Dim derLD As Integer
+    Dim derL As Integer
+    Dim i, j As Integer
+    Dim derniereUpdate As String
+
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+
+    With Sheets("0Source").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 11
+    End With
+    
+    Sheets("0Source").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    derLC = Sheets("0Source").Cells(Rows.Count, 3).End(xlUp).Row
+    derLD = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+    derL = WorksheetFunction.Max(derLC, derLD)
+    
+    'Appelle la requête Fitch et remplit les champs manquants
+    For i = 3 To derL
+        If Sheets("0Source").Range("C" & i).Value = "" Or Sheets("0Source").Range("D" & i).Value = "" Or Sheets("0Source").Range("E" & i).Value = "" Or Sheets("0Source").Range("F" & i).Value = "" Or Sheets("0Source").Range("G" & i).Value = "" Then
+            Sheets("0Source").Range("E" & i).Clear
+            Sheets("0Source").Range("F" & i).Clear
+            Sheets("0Source").Range("G" & i).Clear
+            If Sheets("0Source").Range("C" & i).Value = "" Then
+                Sheets("0Source").Range("E" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""F!"" & D" & i & ",{""FC_COMPANY_NAME"", ""FC_ULT_PARENT"", ""FC_COUNTRY_NAME""},,,,,), ""-"")"
+                Sheets("0Source").Range("C" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""F!"" & D" & i & ",{""FC_LEI""},,,,,), ""-"")"
+            ElseIf Sheets("0Source").Range("D" & i).Value = "" Then
+                Sheets("0Source").Range("D" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""L!"" & C" & i & ",{""FC_ENTITY_ID"", ""FC_COMPANY_NAME"", ""FC_ULT_PARENT"", ""FC_COUNTRY_NAME""},,,,,), ""-"")"
+            Else
+                Sheets("0Source").Range("E" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""L!"" & C" & i & ",{""FC_COMPANY_NAME"", ""FC_ULT_PARENT"", ""FC_COUNTRY_NAME""},,,,,), ""-"")"
+            End If
+        End If
+    Next
+    
+    'Mise en page
+    With Sheets("0Source").Range("C2:G2").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C2:G2").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:G" & derL).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C2:G" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C2:G" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C2:G" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C2:G" & derL).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+     With Sheets("0Source").Range("C2:G" & derL).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    Sheets("0Source").Range("C3:G" & derL).Interior.Color = RGB(255, 255, 255)
+    
+    For j = 4 To derL Step 2
+        Sheets("0Source").Range("C" & j & ":G" & j).Interior.Color = RGB(217, 217, 217)
+    Next j
+    
+End Sub
+
+Sub MiseEnPage()
+    
+    Call CopierCollerValeurs(Sheets("1Datas"))
+    Call EnleverTableau(Sheets("1Datas"))
+    Call CreerTableau(Sheets("1Datas"))
+
+End Sub
+
+Sub EnleverTableau(ws As Worksheet)
+
+    Dim tbl As ListObject
+
+    For Each tbl In ws.ListObjects
+            tbl.Unlist
+    Next tbl
+
+End Sub
+
+Sub CreerTableau(ws As Worksheet)
+    
+    Dim rg As Range, a As Integer, b As Integer
+    
+    a = Sheets("1Datas").Cells(Rows.Count, 4).End(xlUp).Row
+    b = Sheets("1Datas").Cells(3, Columns.Count).End(xlToLeft).Column
+
+    Set rg = ws.Range(Cells(3, 4), Cells(a, b))
+    ws.ListObjects.Add(xlSrcRange, rg, XlListObjectHasHeaders:=xlYes).Name = "Tableau_" & ws.Name
+    ws.ListObjects("Tableau_" & ws.Name).TableStyle = "TableStyleMedium18"
+    ws.Columns.AutoFit
+    
+    Set rg = Nothing
+    Set ws = Nothing
+    
+End Sub
+
+Sub CopierCollerValeurs(ws As Worksheet)
+
+    Application.OnTime Now() + TimeValue("00:00:03"), _
+    "ThisWorkbook.CopierCollerValeurs", , True
+    
+    ActiveWorkbook.RefreshAll
+    
+    If IsEmpty(Range("E3")) = False Then
+        Application.OnTime Now() + TimeValue("00:00:03"), _
+        "ThisWorkbook.CopierCollerValeurs", , False
+        ws.Cells.Select
+        Selection.Copy
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    End If
+    
+End Sub
