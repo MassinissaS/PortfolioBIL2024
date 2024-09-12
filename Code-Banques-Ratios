@@ -1,0 +1,1054 @@
+Sub EnleverTrigger(ws As Worksheet)
+
+    ' Sélectionne la plage à partir de C4 jusqu'à la dernière cellule non vide vers le bas et vers la droite
+    ' Supprime le format de remplissage des cellules sélectionnées
+    Range("C4").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    ' Répète la même opération pour la plage à partir de H4
+    Range("H4").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    
+End Sub
+
+Sub VerifierTrigger()
+
+    ' Cette procédure vérifie les valeurs dans une plage et applique une mise en forme conditionnelle en fonction des seuils définis dans 4Thresholds
+    
+    Dim derLT, derLD, i, j, k, derC As Integer
+    Dim champ, cond1, cond2, condition As String
+    Dim signecond1, signecond2 As String
+    Dim nbrcond1, nbrcond2 As Integer
+            
+     ' Récupère la dernière ligne non vide dans la feuille des seuils et dans la feuille active
+    derLT = Sheets("4Thresholds").Cells(Rows.Count, 3).End(xlUp).Row
+    derLD = ActiveSheet.Cells(Rows.Count, 4).End(xlUp).Row
+    derC = ActiveSheet.Cells(3, Columns.Count).End(xlToLeft).Column
+    
+    ' Appelle la procédure pour supprimer les formats actuels
+    Call EnleverTrigger(Sheets("1Current"))
+        
+    ' Boucle sur chaque ligne des seuils pour vérifier si les conditions fixés dans 4Thresholds sont validés
+    For i = 4 To derLT
+        champ = Sheets("4Thresholds").Cells(i, 3).Value
+        cond1 = Sheets("4Thresholds").Cells(i, 4).Value
+        cond2 = Sheets("4Thresholds").Cells(i, 5).Value
+        signecond1 = Left(cond1, 1)
+        signecond2 = Left(cond2, 1)
+        nbrcond1 = Left(Split(cond1, " ")(1), Len(Split(cond1, " ")(1)) - 1)
+        If cond2 <> "" Then
+        nbrcond2 = Left(Split(cond2, " ")(1), Len(Split(cond2, " ")(1)) - 1)
+        Else
+        nbrcond2 = Empty
+        End If
+                            
+        ' Boucle à travers les colonnes de la feuille active pour appliquer les conditions
+        For j = 4 To derC
+            If champ = ActiveSheet.Cells(3, j).Value Then
+                For k = 4 To derLD
+                    If ActiveSheet.Cells(k, j).Value <> "-" Then
+                        ' Applique les conditions et met en forme les cellules qui répondent aux critères
+                        If signecond1 = "<" Then
+                            If CDbl(ActiveSheet.Cells(k, j).Value) < nbrcond1 = True Then
+                                ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                            End If
+                        ElseIf signecond1 = ">" Then
+                            If CDbl(ActiveSheet.Cells(k, j).Value) > nbrcond1 = True Then
+                                ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                            End If
+                        End If
+                    End If
+                Next
+                ' Si une deuxième condition est définie, elle est également appliquée
+                If cond2 <> "" Then
+                    For k = 4 To derLD
+                        If ActiveSheet.Cells(k, j).Value <> "-" Then
+                            If signecond2 = "<" Then
+                                If CDbl(ActiveSheet.Cells(k, j).Value) < nbrcond2 = True Then
+                                    ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                                End If
+                            ElseIf signecond2 = ">" Then
+                                If CDbl(ActiveSheet.Cells(k, j).Value) > nbrcond2 = True Then
+                                    ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                                End If
+                            End If
+                        End If
+                    Next
+                End If
+            End If
+        Next
+    Next
+
+End Sub
+
+Sub CompterTrigger()
+
+    ' Cette procédure compte et liste dans 3Summary les triggers activés dans la feuille "1Current"
+    
+    Dim derLD, derCD, derLR, derCR, derLS, i, j, k, l As Integer
+    Dim derniereUpdate As String
+    Dim nb_trigger As Integer
+    Dim liste_trigger As String
+    
+    derLD = Sheets("1Current").Cells(Rows.Count, 5).End(xlUp).Row
+    derCD = Sheets("1Current").Cells(3, Columns.Count).End(xlToLeft).Column
+    derLS = Sheets("0Source").Cells(Rows.Count, 5).End(xlUp).Row
+    derniereLR = Sheets("3Summary").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    ' Efface les anciennes données dans "3Summary"
+    Sheets("3Summary").Cells.Clear
+    
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    
+    Sheets("3Summary").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    With Sheets("3Summary").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 11
+    End With
+    
+    ' Définit les en-têtes du tableau de résumé
+    Sheets("3Summary").Range("C3").Value = "Company Name"
+    Sheets("3Summary").Range("C3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("C3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("C3").Font.Bold = True
+    
+    Sheets("3Summary").Range("D3").Value = "Number of negative triggers"
+    Sheets("3Summary").Range("D3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("D3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("D3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("D3").Font.Bold = True
+    
+    
+    Sheets("3Summary").Range("E3").Value = "List of activated triggers"
+    Sheets("3Summary").Range("E3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("E3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("E3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("E3").Font.Bold = True
+    
+    Sheets("3Summary").Range("F3").Value = "Statement Year"
+    Sheets("3Summary").Range("F3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("F3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("F3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("F3").Font.Bold = True
+    
+    Sheets("3Summary").Range("G3").Value = "Last review"
+    Sheets("3Summary").Range("G3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("G3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("G3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("G3").Font.Bold = True
+    
+    Sheets("3Summary").Range("H3").Value = "Preferential treatment"
+    Sheets("3Summary").Range("H3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("H3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("H3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("H3").Font.Bold = True
+    
+    Sheets("3Summary").Range("I3").Value = "Limites BRC"
+    Sheets("3Summary").Range("I3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("I3").Font.Color = RGB(255, 255, 255)
+    Sheets("3Summary").Range("I3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("I3").Font.Bold = True
+
+    ' Boucle sur chaque ligne pour compter le nombre de déclencheurs activés
+    For j = 4 To derLD
+        nb_trigger = 0
+        liste_trigger = ""
+        For k = 5 To derCD
+            If Sheets("1Current").Cells(j, k).Interior.ColorIndex = 22 Then
+                nb_trigger = nb_trigger + 1
+                liste_trigger = liste_trigger & Sheets("1Current").Cells(3, k).Value & " ; "
+            End If
+        Next
+        ' Remplir les informations dans la feuille 3Summary
+        Sheets("3Summary").Cells(j, 3).Value = Sheets("1Current").Cells(j, 4).Value
+        Sheets("3Summary").Cells(j, 4).Value = nb_trigger
+        Sheets("3Summary").Cells(j, 5).Value = liste_trigger
+        Sheets("3Summary").Cells(j, 6).Value = Sheets("1Current").Cells(j, 5).Value
+        Sheets("3Summary").Cells(j, 7).Value = Sheets("0Source").Cells(j, 6).Value
+        Sheets("3Summary").Cells(j, 8).Value = Sheets("0Source").Cells(j, 7).Value
+        Sheets("3Summary").Cells(j, 9).Value = Sheets("0Source").Cells(j, 8).Value
+        
+    Next
+    
+    ' Appelle la fonction pour trier le tableau par ordre décroissant sur le nombre de triggers déclenché
+    Call TriTableauTriggers
+    
+    ' Formatage du tableau avec les bordures
+    Sheets("3Summary").Range("C3:I" & derniereLR).Borders.LineStyle = xlNone
+    
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C4:I" & derniereLR).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    Sheets("3Summary").Range("C3:I3").VerticalAlignment = xlVAlignCenter
+    
+    With Sheets("3Summary").Range("C3:I3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:I3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    Sheets("3Summary").Range("C4:I" & derniereLR).Interior.Color = RGB(255, 255, 255)
+    
+    For l = 4 To derniereLR Step 2
+        Sheets("3Summary").Range("C" & l & ":I" & l).Interior.Color = RGB(217, 217, 217)
+    Next l
+    
+    Sheets("3Summary").Activate
+
+End Sub
+
+Sub TriTableauTriggers()
+
+    ' Trie les données dans la feuille "3Summary" en fonction du nombre de déclencheurs négatifs (ordre décroissant)
+    
+    Dim ws As Worksheet
+    Dim lMaxRows As Integer
+    Set ws = ActiveWorkbook.Worksheets("3Summary")
+    
+    lMaxRows = Sheets("3Summary").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    With ws.Sort.SortFields
+        .Clear
+        .Add Key:=ws.Range("D3:D" & lMaxRows), SortOn:=xlSortOnValues, _
+             Order:=xlDescending, DataOption:=xlSortNormal
+    End With
+    
+    With ws.Sort
+        .SetRange ws.Range("C3:Q" & lMaxRows)
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+End Sub
+
+Sub Parametrage()
+
+    ' Cette procédure configure les paramètres afin de récupérer les derniers chiffres annuels pour chaque banque défini dans l'onglet 0Source.
+    
+    Dim rng As Range
+    Dim dlm As String
+    Dim result As String
+    Dim derniereL As Integer
+    Dim derniereL_DV As Integer
+    Dim j As Integer
+    
+    derniereL = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+    derniereL_DV = Sheets("0DataValidation").Cells(Rows.Count, 4).End(xlUp).Row
+        
+    Sheets("0DataValidation").Cells.ClearContents
+    
+    With Sheets("0DataValidation")
+        .Range("A3").Value = "Lookup"
+        .Range("N3").Value = "Fitch ID 2"
+        .Range("O3").Value = "Lookup"
+        .Range("P3").Value = "Primary"
+        .Range("AD3").Value = "Lookup"
+    End With
+    
+    Sheets("0DataValidation").Activate
+    
+    ' Définir la plage de cellules
+    Set rng = ThisWorkbook.Sheets("0Source").Range("D4:D" & derniereL)
+    
+    ' Définir le délimiteur (espace dans ce cas)
+    dlm = ","
+    
+    ' Appeler la fonction personnalisée TextJoinRange pour faire le join
+    result = TextJoinRange(dlm, rng)
+    
+    Sheets("0Settings").Cells(4, 3).Value = "fitchId:" & result
+    Sheets("0Settings").Cells(5, 3).Value = "periodType:Annual"
+    Sheets("0Settings").Cells(6, 3).Value = "entity.id:" & result
+    Sheets("0Settings").Cells(7, 3).Value = "primary:TRUE"
+    
+    Sheets("0DataValidation").Range("T3").FormulaArray = _
+        "=FC.List(""FC_NICKNAMES"",'0Settings'!C6:C7,TRUE)"
+        
+    Application.OnTime Now + TimeValue("00:00:06"), "ThisWorkbook.Boucle"
+    
+    Sheets("0DataValidation").Range("B3").FormulaArray = _
+        "=FC.List(""FC_STATEMENTS_H"",'0Settings'!C2:C5,TRUE,)"
+        
+    Application.OnTime Now + TimeValue("00:00:20"), "ThisWorkbook.Boucle_b"
+    
+
+End Sub
+
+Sub Boucle()
+
+    Dim derniereL As Integer
+    Dim j As Integer
+    
+    derniereL = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+
+    For j = 4 To derniereL
+        If Sheets("0DataValidation").Cells(j, 26) = "true" Then
+            Sheets("0DataValidation").Cells(j, 30) = Sheets("0DataValidation").Cells(j, 20) & Sheets("0DataValidation").Cells(j, 23) & Sheets("0DataValidation").Cells(j, 24)
+        Else
+            Sheets("0DataValidation").Cells(j, 30) = " "
+        End If
+    Next
+
+End Sub
+
+Sub Boucle_b()
+
+    Dim derniereL_DVd As Integer
+    Dim k As Integer
+    
+    derniereL_DVd = Sheets("0DataValidation").Cells(Rows.Count, 4).End(xlUp).Row
+        
+    For k = 4 To derniereL_DVd
+        Sheets("0DataValidation").Cells(k, 14) = Sheets("0DataValidation").Cells(k, 3)
+        Sheets("0DataValidation").Cells(k, 15) = Sheets("0DataValidation").Cells(k, 3) & Sheets("0DataValidation").Cells(k, 7) & Sheets("0DataValidation").Cells(k, 8)
+        searchValue = Sheets("0DataValidation").Cells(k, "O").Value
+        ' Utiliser la fonction Application.Match pour trouver la ligne correspondante dans la colonne AD
+        On Error Resume Next
+        matchRow = Application.Match(searchValue, Sheets("0DataValidation").Range("AD:AD"), 0)
+        On Error GoTo 0
+        
+        If Not IsError(matchRow) Then
+            ' Si une correspondance est trouvée, utiliser la valeur dans la colonne Z à la ligne trouvée
+            result = Sheets("0DataValidation").Cells(matchRow, "Z").Value
+            ' Stocker le résultat dans la cellule correspondante (par exemple, dans la colonne P à la ligne i)
+            Sheets("0DataValidation").Cells(k, "P").Value = result
+        Else
+            ' Si aucune correspondance n'est trouvée, mettre une valeur par défaut ou laisser vide
+            Sheets("0DataValidation").Cells(k, "P").Value = "Not found"
+        End If
+        
+        If Sheets("0DataValidation").Cells(k, "P").Value <> "Not found" Then
+            Sheets("0DataValidation").Cells(k, "A").Value = Sheets("0DataValidation").Cells(k, "C").Value & Sheets("0DataValidation").Cells(k, "P").Value
+        End If
+        
+    Next
+
+End Sub
+
+Function TextJoinRange(delimiter As String, rng As Range) As String
+
+    ' Fonction pour concaténer les valeurs d'une plage de cellules avec un délimiteur donné. Ici, cette fonction récupère tous les Fitch ID pour les coller dans l'onglet 0Settings qui est ensuite injecter dans 0DataValidation
+
+    Dim cell As Range
+    Dim joinedText As String
+    
+    ' Initialiser la variable de résultat
+    joinedText = ""
+    
+    ' Boucler à travers chaque cellule de la plage
+    For Each cell In rng
+        ' Ajouter la valeur de la cellule à la chaîne jointe
+        joinedText = joinedText & cell.Value
+        
+        ' Ajouter le délimiteur si ce n'est pas la dernière cellule
+        If Not cell.Address = rng.Cells(rng.Cells.Count).Address Then
+            joinedText = joinedText & delimiter
+        End If
+    Next cell
+    
+    ' Retourner le texte joint
+    TextJoinRange = joinedText
+End Function
+
+Sub CopierCollerValeurs(ws As Worksheet)
+
+    ' Cette procédure copie les valeurs d'une feuille et les colle dans la même plage afin de permettre à l'utilisateur de faire des modifs sur les données
+
+    Application.OnTime Now() + TimeValue("00:00:03"), _
+    "ThisWorkbook.CopierCollerValeurs", , True
+    
+    ActiveWorkbook.RefreshAll
+    
+    If IsEmpty(ws.Range("E4")) = False Then
+        Application.OnTime Now() + TimeValue("00:00:03"), _
+        "ThisWorkbook.CopierCollerValeurs", , False
+        ws.Cells.Select
+        Selection.Copy
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    End If
+
+End Sub
+
+Sub Etape1()
+
+    ' Initialisation et préparation des données dans plusieurs feuilles avant traitement
+
+    Dim derniereL As Integer
+    Dim derniereL_S As Integer
+    Dim i As Integer
+    Dim j As Integer
+    Dim k As Integer
+    Dim searchValue As String
+    Dim matchRow As Variant
+    Dim result As Variant
+    Dim derniereUpdate As String
+    Dim nb_champ As Integer
+
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    derniereL = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+    derniereL_S = Sheets("0Source").Cells(Rows.Count, 12).End(xlUp).Row
+    nb_champ = derniereL_S - 3
+    
+    With Sheets("1Current").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 9
+    End With
+    
+    Sheets("1Current").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    'Stocke dans une variable les numéros de la dernière ligne et de la dernière colonne // OK
+    derniereL = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+
+    'S'il n'y a pas de tableau initialement alors  le créer // OK
+    If Not TabExiste(Sheets("1Current")) Then
+        Call CreerTableau(Sheets("1Current"))
+    End If
+    
+    'On  stocke 1 Données dans un onglet de passage // OK
+    Sheets("1Current").Copy Before:=Sheets("2Previous")
+    ActiveSheet.Name = "1.5Passage"
+    
+    Call SupprimerBoutons(Sheets("1.5Passage"))
+    Call SupprimerBoutons(Sheets("2Previous"))
+    
+    'On crée un tableau dans l'onglet Passage // OK
+    Call EnleverTableau(Sheets("1.5Passage"))
+    Call CreerTableau(Sheets("1.5Passage"))
+    
+    'On supprime les datas dans l'onglet 1 Données // OK
+    Call SupprimerData(Sheets("1Current"))
+    
+    'On insère la formule Fitch et on copie/colle en valeurs afin de permettre des traitements sur les données // OK
+    Call EnleverTableau(Sheets("1Current"))
+    
+    For k = 4 To derniereL_S
+        Sheets("1Current").Cells(2, k + 4).Value = Sheets("0Source").Cells(k, 12).Value
+        Sheets("1Current").Cells(3, k + 4).Value = Sheets("0Source").Cells(k, 11).Value
+    Next
+        
+    Sheets("1Current").Activate
+    
+    For i = 4 To derniereL
+        Sheets("1Current").Cells(i, 3).Value = Sheets("0Source").Cells(i, 4).Value
+        Sheets("1Current").Cells(i, 4).Value = Sheets("0Source").Cells(i, 5).Value
+        ' Construire la valeur de recherche (valeur de la colonne B + "TRUE")
+        searchValue = Sheets("1Current").Cells(i, 3).Value & "TRUE" ' Colonne B correspond à la colonne 2
+        
+        ' Trouver la ligne correspondant à searchValue dans la colonne A de '0DataValidation'
+        On Error Resume Next
+        matchRow = Application.Match(searchValue, Sheets("0DataValidation").Range("A:A"), 0)
+        On Error GoTo 0
+        
+        For j = 5 To 7
+            ' Si une correspondance est trouvée, récupérer la valeur correspondante de la colonne F
+            If Not IsError(matchRow) Then
+                result = Sheets("0DataValidation").Cells(matchRow, j + 1).Value ' Colonne F correspond à la colonne 6
+            Else
+                result = "Not found"
+            End If
+            ' Stocker le résultat dans la colonne de votre choix, par exemple, la colonne G
+            Sheets("1Current").Cells(i, j).Value = result ' Colonne G correspond à la colonne 7
+        Next j
+    Next i
+    
+    'Enlève les triggers de la précédente version
+    Call EnleverTrigger(Sheets("1Current"))
+    
+    'Injecte les données en fonction des champs/banques présent dans l'onglet 0Source
+    Call UpdateFitch(Sheets("1Current"), nb_champ)
+
+End Sub
+
+Sub Etape2()
+
+    ' Prépare les données pour les afficher dans un tableau avec format et bordures
+
+    Dim derniereL, derniereC, i As Integer
+    Dim rng As Range
+    Dim cell As Range
+    Dim cellValue As Double
+    Dim colWidths() As Double
+    
+    derniereL = Sheets("1Current").Cells(Rows.Count, 3).End(xlUp).Row
+    derniereC = Sheets("1Current").Cells(3, Columns.Count).End(xlToLeft).Column
+    
+    ReDim colWidths(3 To derniereC)
+    
+    For i = 3 To derniereC
+        colWidths(i) = Sheets("1Current").Columns(i).ColumnWidth
+    Next
+    
+    Call CopierCollerValeurs(Sheets("1Current"))
+    
+    Sheets("1Current").Range(Cells(3, 3), Cells(derniereL, derniereC)).Borders.LineStyle = xlNone
+    
+    Call CreerTableau(Sheets("1Current"))
+    
+    With Sheets("1Current").Range(Cells(3, 3), Cells(3, derniereC)).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range(Cells(3, 3), Cells(3, derniereC)).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range(Cells(3, 3), Cells(derniereL, derniereC)).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("1Current").Range(Cells(4, 3), Cells(derniereL, derniereC)).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+        
+    With Sheets("1Current").Range(Cells(4, 3), Cells(derniereL, derniereC)).Borders(xlInsideHorizontal)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range(Cells(4, 3), Cells(derniereL, 7)).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range(Cells(3, 3), Cells(derniereL, derniereC)).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range(Cells(3, 3), Cells(derniereL, derniereC)).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    Set rng = Sheets("1Current").Range(Cells(4, 8), Cells(derniereL, derniereC))
+    
+    For Each cell In rng
+        If IsNumeric(cell.Value) Then
+            cellValue = cell.Value
+            
+            If cellValue = Int(cellValue) Then
+                cell.NumberFormat = "#,##0"
+            Else
+                cell.NumberFormat = "#,##0.00"
+            End If
+        End If
+    Next
+    
+    Sheets("1Current").Range(Cells(4, 8), Cells(derniereL, derniereC)).HorizontalAlignment = xlLeft
+
+    Sheets("1Current").Range(Cells(2, 1), Cells(2, derniereC)).ClearContents
+    
+    For i = 3 To derniereC
+        Sheets("1Current").Columns(i).ColumnWidth = colWidths(i)
+    Next
+    
+    Sheets("1Current").Activate
+    ActiveWindow.FreezePanes = False
+    Range("F1").Select
+    ActiveWindow.FreezePanes = True
+
+End Sub
+
+Sub Etape3()
+
+    ' Cette procédure compare les données de 1Current et 1.5Passage et highlight si de nouveaux résultats annuels sont apparus
+
+    Dim derniereL As Integer
+    Dim derniereC As Integer
+    Dim compteur As Integer
+    Dim i As Integer
+    Dim tbl As ListObject
+    Dim tbl_2 As ListObject
+    Dim derniereUpdate As String
+    Dim currentMonth As String
+    Dim currentYear As String
+    Dim startPos As Integer
+    Dim monthAndYear As String
+    Dim monthName_old As String
+    Dim yearValue_old As String
+    Dim text As String
+    
+    ' Mise à jour de la date
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    Sheets("1Current").Range("A1").Value = "Last update on : " & derniereUpdate
+    Sheets("1Current").Range("A1").Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Range("A1").Font.Color = RGB(255, 255, 255)
+    Sheets("1Current").Range("A1").Font.Bold = True
+    Sheets("1Current").Range("A1").Font.Size = 11
+
+    Set tbl = Sheets("1Current").ListObjects("Tableau_1Current")
+    Set tbl_2 = Sheets("1.5Passage").ListObjects("Tableau_1.5Passage")
+    
+    ' Obtention du mois et de l'année en cours
+    currentMonth = Format(Now(), "mmmm")
+    currentYear = Year(Now())
+    
+    ' Extraction du mois et de l'année de la cellule C1 dans la feuille "1.5Passage"
+    text = Sheets("1.5Passage").Range("C1").Value
+    startPos = InStr(text, "in :") + Len("in :")
+    monthAndYear = Trim(Mid(text, startPos))
+    monthName_old = Split(monthAndYear)(0)
+    yearValue_old = Split(monthAndYear)(1)
+    
+    ' Fusionner et centrer les cellules C1:D1
+    With Sheets("1Current").Range("C1:D1")
+        .Merge
+        .HorizontalAlignment = xlCenter
+        .Interior.Color = RGB(165, 165, 165)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+    End With
+    
+    ' Mise à jour de la cellule fusionnée avec le mois et l'année en cours
+    Sheets("1Current").Cells(1, 3).Value = "The data was updated in : " & currentMonth & " " & currentYear
+    Sheets("1Current").Cells(1, 3).Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Cells(1, 3).Font.Color = RGB(255, 255, 255)
+    Sheets("1Current").Cells(1, 3).Font.Bold = True
+    
+    derniereL = tbl.DataBodyRange.Rows.Count
+    derniereL_P = tbl_2.DataBodyRange.Rows.Count
+    compteur = 0
+
+    'Comparer Latest_Stmt_Date Tableau_Données avec Latest_Stmt_Date Tableau_Passage
+    For i = 1 To derniereL
+        For j = 1 To derniereL_P
+            If tbl.DataBodyRange(i, 2) = tbl_2.DataBodyRange(j, 2) Then
+                If tbl.DataBodyRange(i, 3) <> tbl_2.DataBodyRange(j, 3) Then
+                    tbl.DataBodyRange.Rows(3).Interior.ColorIndex = 6
+                    compteur = compteur + 1
+                End If
+            End If
+        Next j
+    Next i
+    
+    'L'archivage automatique est réalisé uniquement si nous passons du moi de
+    If currentMonth <> monthName_old And currentMonth = "August" Then
+        If compteur > 0 Then
+            If compteur = 1 Then
+                MsgBox "There was " & compteur & " change since the last update"
+            Else
+                MsgBox "There were " & compteur & " changes since the last update"
+            End If
+        Else
+            MsgBox "There have been no changes since the last update"
+        End If
+        
+        MsgBox "We suppose that most banks have published their latest annual results. Data from the previous year will be archived."
+        
+        Call SupprimerBoutons(Sheets("1.5Passage"))
+        Call ArchivageOnglet
+        Call SupprimerPage(Sheets("2Previous"))
+        Sheets("1.5Passage").Name = "2Previous"
+        Call VerifierTrigger
+    Else
+        If compteur > 0 Then
+            If compteur = 1 Then
+                MsgBox "There was " & compteur & " change since the last update"
+            Else
+                MsgBox "There were " & compteur & " changes since the last update"
+            End If
+        Else
+            MsgBox "There have been no changes since the last update"
+        End If
+        
+        Call SupprimerPage(Sheets("1.5Passage"))
+        Call VerifierTrigger
+    End If
+    
+    Call CompterTrigger
+        
+End Sub
+
+Function FeuilleExiste(Nom As String) As Boolean
+    
+    Dim sh As Object
+ 
+    For Each sh In Sheets
+        If UCase(sh.Name) = UCase(Nom) Then
+            FeuilleExiste = True
+            Exit For
+        End If
+    Next
+    
+End Function
+
+Sub UpdateFitch(ws As Worksheet, nb_champ As Integer)
+
+    Dim derniereUpdate As String
+    Dim derL As Integer
+    Dim lettreColonne_a As String
+    Dim lettreColonne_b As String
+    Dim lettreColonne_c As String
+    
+    'Permet d'appeler 2 requêtes pour traiter le grand nombre de champ et ainsi limiter le risque opérationnel
+    lettreColonne_a = NumToLtr(nb_champ + 7)
+    lettreColonne_b = NumToLtr((nb_champ \ 2) + 7)
+    lettreColonne_c = NumToLtr((nb_champ \ 2) + 8)
+    
+    derL = ws.Cells(Rows.Count, 3).End(xlUp).Row
+    
+    ws.Range("H4").FormulaArray = _
+        "=FC.IfError(FC.ED(""F!"" & C4:C" & derL & ", H2:" & lettreColonne_b & "2, E4:E" & derL & ", F4:F" & derL & ", G4:G" & derL & "), ""-"")"
+        
+    ws.Range(lettreColonne_c & "4").FormulaArray = _
+        "=FC.IfError(FC.ED(""F!"" & C4:C" & derL & ", " & lettreColonne_c & "2:" & lettreColonne_a & "2, E4:E" & derL & ", F4:F" & derL & ", G4:G" & derL & "), ""-"")"
+    
+End Sub
+
+Function TabExiste(ws As Worksheet) As Boolean
+
+    TabExiste = ws.ListObjects.Count > 0
+
+End Function
+
+Sub EnleverTableau(ws As Worksheet)
+
+    Dim tbl As ListObject
+
+    For Each tbl In ws.ListObjects
+            tbl.Unlist
+    Next tbl
+
+End Sub
+
+Sub CreerTableau(ws As Worksheet)
+    
+    Dim rg As Range, derniereLigne As Integer, derniereColonne As Integer
+    
+    derniereLigne = ws.Cells(Rows.Count, 3).End(xlUp).Row
+    derniereColonne = ws.Cells(3, Columns.Count).End(xlToLeft).Column
+    
+
+    Set rg = ws.Range(Cells(3, 3), Cells(derniereLigne, derniereColonne))
+    ws.ListObjects.Add(xlSrcRange, rg, XlListObjectHasHeaders:=xlYes).Name = "Tableau_" & ws.Name
+    ws.ListObjects("Tableau_" & ws.Name).TableStyle = "TableStyleMedium18"
+    
+    Set rg = Nothing
+    Set ws = Nothing
+    
+End Sub
+
+Sub SupprimerPage(ws As Worksheet)
+    
+    With Application
+    .ScreenUpdating = False
+    .DisplayAlerts = False
+    End With
+    
+    ws.Delete
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+End Sub
+
+Sub SupprimerData(ws As Worksheet)
+    
+    Dim tbl As ListObject
+    
+    For Each tbl In ws.ListObjects
+        tbl.DataBodyRange.Columns(1).Resize(, 50).ClearContents
+    Next tbl
+    
+    Set ws = Nothing
+
+End Sub
+
+Sub EnleverSurligneur(ws As Worksheet)
+
+    ws.Cells.Interior.ColorIndex = xlNone
+    
+End Sub
+
+Sub SupprimerBoutons(ws As Worksheet)
+
+    Dim shp As Shape
+
+    ' Parcourir toutes les formes de la feuille et supprimer les boutons
+    For Each shp In ws.Shapes
+        If shp.Type = msoFormControl Then
+            If shp.FormControlType = xlButtonControl Then
+                shp.Delete
+            End If
+        End If
+    Next shp
+    
+End Sub
+
+Sub RefreshSource()
+
+    Dim derniereUpdate As String
+    Dim derL, derLC, derLD, i, j As Integer
+
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+
+    With Sheets("0Source").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 9
+    End With
+    
+    Sheets("0Source").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    derLC = Sheets("0Source").Cells(Rows.Count, 3).End(xlUp).Row
+    derLD = Sheets("0Source").Cells(Rows.Count, 4).End(xlUp).Row
+    derL = WorksheetFunction.Max(derLC, derLD)
+
+    Call CopierCollerValeurs(Sheets("0Source"))
+    
+    For i = 3 To derL
+        If Sheets("0Source").Range("C" & i).Value = "" Or Sheets("0Source").Range("D" & i).Value = "" Or Sheets("0Source").Range("E" & i).Value = "" Then
+            Sheets("0Source").Range("E" & i).Clear
+            If Sheets("0Source").Range("C" & i).Value = "" Then
+                Sheets("0Source").Range("C" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""F!"" & D" & i & ",""FC_LEI""), ""-"")"
+                Sheets("0Source").Range("E" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""F!"" & D" & i & ",""FC_COMPANY_NAME""), ""-"")"
+            ElseIf Sheets("0Source").Range("D" & i).Value = "" Then
+                Sheets("0Source").Range("D" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""L!"" & C" & i & ",""FC_ENTITY_ID""), ""-"")"
+                Sheets("0Source").Range("E" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""L!"" & C" & i & ",""FC_COMPANY_NAME""), ""-"")"
+            Else
+                Sheets("0Source").Range("E" & i).FormulaArray = _
+                "=FC.IfError(FC.ED(""L!"" & C" & i & ",""FC_COMPANY_NAME""), ""-"")"
+            End If
+        End If
+    Next
+    
+    With Sheets("0Source").Range("C3:H3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:H3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:H" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:H" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:H" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:H" & derL).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+     With Sheets("0Source").Range("C3:H" & derL).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C4:H" & derL).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    Sheets("0Source").Range("C4:H" & derL).Interior.Color = RGB(255, 255, 255)
+    
+    For j = 4 To derL Step 2
+        Sheets("0Source").Range("C" & j & ":H" & j).Interior.Color = RGB(217, 217, 217)
+    Next j
+    
+    Sheets("0Source").Range("C4:H" & derL).HorizontalAlignment = xlLeft
+    
+End Sub
+
+Function NumToLtr(nb_champ)
+
+    NumToLtr = Split(Cells(1, nb_champ).Address, "$")(1)
+
+End Function
+
+Sub ArchivageOnglet()
+
+    'Archive automatique à fréquence annuelle. Se déroule lors passage du mois de Juillet à Août
+
+    Dim sourceWorkbook As Workbook
+    Dim destinationWorkbook As Workbook
+    Dim sheetToCopy As Worksheet
+    Dim destinationPath As String
+    Dim destinationFileName As String
+    Dim latest_date_old As Date
+    Dim copiedSheet As Worksheet
+    Dim fileExists As Boolean
+    Dim startPos As Integer
+    Dim monthAndYear As String
+    Dim monthName_old As String
+    Dim yearValue_old As Integer ' Modifier pour un entier
+    Dim text As String
+    Dim sheetName As String
+
+    ' Obtenir le nom du mois et de l'année
+    text = Sheets("1.5Passage").Range("C1").Value
+    startPos = InStr(text, "in :") + Len("in :")
+    monthAndYear = Trim(Mid(text, startPos))
+    monthName_old = Split(monthAndYear)(0)
+    yearValue_old = CInt(Split(monthAndYear)(1)) ' Conversion en entier
+    
+    ' Soustraire 1 à l'année
+    yearValue_old = yearValue_old - 1
+    
+    ' Spécifiez le chemin du répertoire et le nom du fichier de destination
+    destinationPath = "\\Bnet\shares\CCA\000 - Suivi Dynamique\Archives-Banques-Ratios\"
+    destinationFileName = "Archives-Banques-Ratios-" & yearValue_old & ".xlsx"
+    
+    ' Vérifier si le fichier existe
+    If Dir(destinationPath & destinationFileName) <> "" Then
+        fileExists = True
+    Else
+        fileExists = False
+    End If
+    
+    ' Ouvrir le classeur de destination ou le créer s'il n'existe pas
+    If fileExists Then
+        Set destinationWorkbook = Workbooks.Open(destinationPath & destinationFileName)
+    Else
+        Set destinationWorkbook = Workbooks.Add
+        destinationWorkbook.SaveAs Filename:=destinationPath & destinationFileName
+    End If
+
+    ' Référencez le classeur source
+    Set sourceWorkbook = ThisWorkbook ' Assumant que le code est exécuté à partir du classeur source
+    
+    ' Fonction pour vérifier et supprimer une feuille si elle existe déjà
+    Call DeleteSheetIfExists(destinationWorkbook, "Summary")
+    Call DeleteSheetIfExists(destinationWorkbook, "Datas")
+    Call DeleteSheetIfExists(destinationWorkbook, "Thresholds")
+    
+    ' 1. Copier l'onglet "3Summary" et le renommer "Summary"
+    sourceWorkbook.Sheets("3Summary").Copy Before:=destinationWorkbook.Sheets(1)
+    Set copiedSheet = destinationWorkbook.Sheets(1)
+    copiedSheet.Name = "Summary"
+    
+    ' 2. Copier l'onglet "1.5Passage" et le renommer "Datas"
+    sourceWorkbook.Sheets("1.5Passage").Copy After:=destinationWorkbook.Sheets(1)
+    Set copiedSheet = destinationWorkbook.Sheets(2)
+    copiedSheet.Name = "Datas"
+    
+    ' 3. Copier l'onglet "4Thresholds" et le renommer "Thresholds"
+    sourceWorkbook.Sheets("4Thresholds").Copy After:=destinationWorkbook.Sheets(2)
+    Set copiedSheet = destinationWorkbook.Sheets(3)
+    copiedSheet.Name = "Thresholds"
+    
+    Call SupprimerBoutons(destinationWorkbook.Sheets("Summary"))
+    
+    Call DeleteSheetIfExists(destinationWorkbook, "Sheet1")
+    
+    ' Sauvegarder et fermer le classeur de destination
+    destinationWorkbook.Save
+    destinationWorkbook.Close
+
+    ' Message de confirmation - à supprimer après la phase de test
+    MsgBox "The data has been archived in " & destinationFileName
+
+End Sub
+
+Sub DeleteSheetIfExists(wb As Workbook, sheetName As String)
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = wb.Sheets(sheetName)
+    On Error GoTo 0
+    
+    If Not ws Is Nothing Then
+        Application.DisplayAlerts = False ' Désactiver les alertes pour supprimer la feuille sans confirmation
+        ws.Delete
+        Application.DisplayAlerts = True ' Réactiver les alertes
+    End If
+End Sub
