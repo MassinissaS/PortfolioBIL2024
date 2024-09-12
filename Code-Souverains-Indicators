@@ -1,0 +1,1034 @@
+Sub RefreshSource()
+
+    Dim derniereUpdate As String
+    Dim derL, j As Integer
+    
+    derL = Sheets("0Source").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+
+    With Sheets("0Source").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 9
+    End With
+    
+    Sheets("0Source").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    Range("D4:F" & derL).Clear
+    
+    Sheets("0Source").Range("D4").FormulaArray = _
+        "=FC.IfError(FC.ED(""F!""&C4:C" & derL & ",{""FC_COUNTRY_CD"", ""FC_COUNTRY_NAME"", ""FC_REGION""}), ""-"")"
+        
+    With Sheets("0Source").Range("C3:M3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:M3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("0Source").Range("C3:M" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:M" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:M" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C3:M" & derL).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+     With Sheets("0Source").Range("C3:M" & derL).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("0Source").Range("C4:M" & derL).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    Sheets("0Source").Range("C4:M" & derL).Interior.Color = RGB(255, 255, 255)
+    
+    For j = 4 To derL Step 2
+        Sheets("0Source").Range("C" & j & ":M" & j).Interior.Color = RGB(217, 217, 217)
+    Next j
+    
+    Sheets("0Source").Range("C4:M" & derL).HorizontalAlignment = xlLeft
+    
+End Sub
+
+Sub Etape1()
+    
+    Dim derL, derL_SDC As Integer
+    Dim fichier_source As Workbook
+    Dim fichier_destination As Workbook
+    Dim chemin_fichier_source As String
+    Dim i, j As Integer
+    Dim k, l As Integer
+    Dim derniereL As Integer
+    Dim date_donnees As String
+    Dim rng As Range
+    Dim cell As Range
+
+    chemin_fichier_source = Application.GetOpenFilename()
+    Set fichier_source = Workbooks.Open(chemin_fichier_source)
+    Set fichier_destination = Workbooks("Suivi-Souverains-Indicators.xlsm") 'A modifier si le nom du fichier est modifié
+    
+    derL = fichier_destination.Sheets("1Current").Cells(Rows.Count, 3).End(xlUp).Row
+    derL_SDC = fichier_source.Sheets(2).Cells(Rows.Count, 6).End(xlUp).Row
+    derniereL = Sheets("0Source").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    If fichier_source.Sheets(1).Cells(7, 2).Value = "" Then
+        date_donnees = fichier_source.Sheets(1).Cells(7, 1).Value
+    Else
+        date_donnees = fichier_source.Sheets(1).Cells(7, 2).Value
+    End If
+    
+    Sheets("1Current").Range("A1").Value = "The data comes from : " & date_donnees
+    Sheets("1Current").Range("A1").Interior.Color = RGB(112, 48, 160)
+    Sheets("1Current").Range("A1").Font.Bold = True
+    Sheets("1Current").Range("A1").Font.Size = 9
+    Sheets("1Current").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    fichier_destination.Activate
+    
+    Call EnleverTrigger(Sheets("1Current"))
+    
+    For i = 4 To derL
+        Sheets("1Current").Cells(i, 8).ClearContents
+    Next
+    
+    'On récupère la liste des banques
+    For k = 3 To derniereL
+        For l = 3 To 7
+            Sheets("1Current").Cells(k, l).Value = Sheets("0Source").Cells(k, l).Value
+            Sheets("1Current").Cells(k, 62).Value = Sheets("0Source").Cells(k, 13).Value
+        Next
+    Next
+
+    'Dans les lignes suivantes on récupère les années contenues dans les en-têtes des champs que nous avons spécifié
+    
+    'GDP growth
+    fichier_destination.Sheets("1Current").Cells(3, 9).Value = "Real GDP growth (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 22).Value
+    fichier_destination.Sheets("1Current").Cells(3, 10).Value = "Real GDP growth (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 23).Value
+    fichier_destination.Sheets("1Current").Cells(3, 11).Value = "Real GDP growth (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 24).Value
+    fichier_destination.Sheets("1Current").Cells(3, 12).Value = "Real GDP growth (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 25).Value
+    
+    'Primary Balance
+    fichier_destination.Sheets("1Current").Cells(3, 13).Value = "Primary Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 59).Value
+    fichier_destination.Sheets("1Current").Cells(3, 14).Value = "Primary Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 60).Value
+    fichier_destination.Sheets("1Current").Cells(3, 15).Value = "Primary Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 61).Value
+    fichier_destination.Sheets("1Current").Cells(3, 16).Value = "Primary Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 62).Value
+    
+    'GG Balance
+    fichier_destination.Sheets("1Current").Cells(3, 17).Value = "Gen. Gov. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 53).Value
+    fichier_destination.Sheets("1Current").Cells(3, 18).Value = "Gen. Gov. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 54).Value
+    fichier_destination.Sheets("1Current").Cells(3, 19).Value = "Gen. Gov. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 55).Value
+    fichier_destination.Sheets("1Current").Cells(3, 20).Value = "Gen. Gov. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 56).Value
+    
+    'Debt / GDP
+    fichier_destination.Sheets("1Current").Cells(3, 21).Value = "Debt to GDP (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 65).Value
+    fichier_destination.Sheets("1Current").Cells(3, 22).Value = "Debt to GDP (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 66).Value
+    fichier_destination.Sheets("1Current").Cells(3, 23).Value = "Debt to GDP (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 67).Value
+    fichier_destination.Sheets("1Current").Cells(3, 24).Value = "Debt to GDP (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 68).Value
+    
+
+    'NXD
+    fichier_destination.Sheets("1Current").Cells(3, 25).Value = "Net Ext. Debt (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 149).Value
+    fichier_destination.Sheets("1Current").Cells(3, 26).Value = "Net Ext. Debt (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 150).Value
+    fichier_destination.Sheets("1Current").Cells(3, 27).Value = "Net Ext. Debt (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 151).Value
+    fichier_destination.Sheets("1Current").Cells(3, 28).Value = "Net Ext. Debt (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 152).Value
+    
+    'CAB
+    fichier_destination.Sheets("1Current").Cells(3, 29).Value = "Current Acc. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 132).Value
+    fichier_destination.Sheets("1Current").Cells(3, 30).Value = "Current Acc. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 133).Value
+    fichier_destination.Sheets("1Current").Cells(3, 31).Value = "Current Acc. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 134).Value
+    fichier_destination.Sheets("1Current").Cells(3, 32).Value = "Current Acc. Balance (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 135).Value
+    
+                
+    'CAB + NET FDI
+    fichier_destination.Sheets("1Current").Cells(3, 33).Value = "CAB + Net FDI (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 138).Value
+    fichier_destination.Sheets("1Current").Cells(3, 34).Value = "CAB + Net FDI (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 139).Value
+    fichier_destination.Sheets("1Current").Cells(3, 35).Value = "CAB + Net FDI (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 140).Value
+    fichier_destination.Sheets("1Current").Cells(3, 36).Value = "CAB + Net FDI (%GDP)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 141).Value
+    
+    'GDP
+    fichier_destination.Sheets("1Current").Cells(3, 37).Value = "GDP (USDbn)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 16).Value
+    fichier_destination.Sheets("1Current").Cells(3, 38).Value = "GDP (USDbn)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 17).Value
+
+    'Reserves
+    fichier_destination.Sheets("1Current").Cells(3, 39).Value = "Reserves (USDm)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 215).Value
+    
+    'Reserves % GDP
+    fichier_destination.Sheets("1Current").Cells(3, 40).Value = "Reserves (%GDP)" & Chr(10) & Right(fichier_destination.Sheets("1Current").Cells(3, 39).Value, 4)
+    
+    'CPI
+    fichier_destination.Sheets("1Current").Cells(3, 41).Value = "CPI (%Ann. Avg. Growth)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 28).Value
+    fichier_destination.Sheets("1Current").Cells(3, 42).Value = "CPI (%Ann. Avg. Growth)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 29).Value
+    fichier_destination.Sheets("1Current").Cells(3, 43).Value = "CPI (%Ann. Avg. Growth)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 30).Value
+    fichier_destination.Sheets("1Current").Cells(3, 44).Value = "CPI (%Ann. Avg. Growth)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 31).Value
+    
+    'Unemployment rate
+    fichier_destination.Sheets("1Current").Cells(3, 45).Value = "Unemployment rate (%Working pop.)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 247).Value
+    fichier_destination.Sheets("1Current").Cells(3, 46).Value = "Unemployment rate (%Working pop.)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 248).Value
+    fichier_destination.Sheets("1Current").Cells(3, 47).Value = "Unemployment rate (%Working pop.)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 249).Value
+    
+    'Private Credit
+    fichier_destination.Sheets("1Current").Cells(3, 48).Value = "Private Credit (%Change)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 96).Value
+    fichier_destination.Sheets("1Current").Cells(3, 49).Value = "Private Credit (%Change)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 97).Value
+    
+    'BSI/MPI
+    fichier_destination.Sheets("1Current").Cells(3, 50).Value = "BSI/MPI" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 105).Value
+    
+    'NPL
+    fichier_destination.Sheets("1Current").Cells(3, 51).Value = "NPL (%Gross Loans)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 119).Value
+    fichier_destination.Sheets("1Current").Cells(3, 52).Value = "NPL (%Gross Loans)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 120).Value
+    fichier_destination.Sheets("1Current").Cells(3, 53).Value = "NPL (%Gross Loans)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 121).Value
+    
+    'Dollarisation
+    fichier_destination.Sheets("1Current").Cells(3, 54).Value = "Dollarisation (%)" & Chr(10) & fichier_source.Sheets("Data").Cells(10, 129).Value
+    
+    'World Bank Indicator
+    fichier_destination.Sheets("1Current").Cells(3, 55).Value = fichier_source.Sheets("Data").Cells(9, 252).Value
+    fichier_destination.Sheets("1Current").Cells(3, 56).Value = fichier_source.Sheets("Data").Cells(9, 253).Value
+    fichier_destination.Sheets("1Current").Cells(3, 57).Value = fichier_source.Sheets("Data").Cells(9, 254).Value
+    fichier_destination.Sheets("1Current").Cells(3, 58).Value = fichier_source.Sheets("Data").Cells(9, 255).Value
+    fichier_destination.Sheets("1Current").Cells(3, 59).Value = fichier_source.Sheets("Data").Cells(9, 256).Value
+    fichier_destination.Sheets("1Current").Cells(3, 60).Value = fichier_source.Sheets("Data").Cells(9, 257).Value
+    
+    'WBW Average
+    fichier_destination.Sheets("1Current").Cells(3, 61).Value = fichier_source.Sheets("Data").Cells(9, 251).Value
+    
+    fichier_destination.Sheets("1Current").Cells(3, 62).Value = "Second Best Rating"
+    
+    'Dans cette boucle on récupère les données pour les champs définies et les banques constituant notre portefeuille
+    For i = 4 To derL
+        For j = 12 To 135
+            If fichier_destination.Sheets("1Current").Cells(i, 4).Value = fichier_source.Sheets("Data").Cells(j, 6).Value Then
+                
+                'GDP growth
+                fichier_destination.Sheets("1Current").Cells(i, 9).Value = fichier_source.Sheets("Data").Cells(j, 22).Value
+                fichier_destination.Sheets("1Current").Cells(i, 10).Value = fichier_source.Sheets("Data").Cells(j, 23).Value
+                fichier_destination.Sheets("1Current").Cells(i, 11).Value = fichier_source.Sheets("Data").Cells(j, 24).Value
+                fichier_destination.Sheets("1Current").Cells(i, 12).Value = fichier_source.Sheets("Data").Cells(j, 25).Value
+                
+                'Primary Balance
+                fichier_destination.Sheets("1Current").Cells(i, 13).Value = fichier_source.Sheets("Data").Cells(j, 59).Value
+                fichier_destination.Sheets("1Current").Cells(i, 14).Value = fichier_source.Sheets("Data").Cells(j, 60).Value
+                fichier_destination.Sheets("1Current").Cells(i, 15).Value = fichier_source.Sheets("Data").Cells(j, 61).Value
+                fichier_destination.Sheets("1Current").Cells(i, 16).Value = fichier_source.Sheets("Data").Cells(j, 62).Value
+                
+                'GG Balance
+                fichier_destination.Sheets("1Current").Cells(i, 17).Value = fichier_source.Sheets("Data").Cells(j, 53).Value
+                fichier_destination.Sheets("1Current").Cells(i, 18).Value = fichier_source.Sheets("Data").Cells(j, 54).Value
+                fichier_destination.Sheets("1Current").Cells(i, 19).Value = fichier_source.Sheets("Data").Cells(j, 55).Value
+                fichier_destination.Sheets("1Current").Cells(i, 20).Value = fichier_source.Sheets("Data").Cells(j, 56).Value
+                
+                'Debt / GDP
+                fichier_destination.Sheets("1Current").Cells(i, 21).Value = fichier_source.Sheets("Data").Cells(j, 65).Value
+                fichier_destination.Sheets("1Current").Cells(i, 22).Value = fichier_source.Sheets("Data").Cells(j, 66).Value
+                fichier_destination.Sheets("1Current").Cells(i, 23).Value = fichier_source.Sheets("Data").Cells(j, 67).Value
+                fichier_destination.Sheets("1Current").Cells(i, 24).Value = fichier_source.Sheets("Data").Cells(j, 68).Value
+                
+                'NXD
+                fichier_destination.Sheets("1Current").Cells(i, 25).Value = fichier_source.Sheets("Data").Cells(j, 149).Value
+                fichier_destination.Sheets("1Current").Cells(i, 26).Value = fichier_source.Sheets("Data").Cells(j, 150).Value
+                fichier_destination.Sheets("1Current").Cells(i, 27).Value = fichier_source.Sheets("Data").Cells(j, 151).Value
+                fichier_destination.Sheets("1Current").Cells(i, 28).Value = fichier_source.Sheets("Data").Cells(j, 152).Value
+                
+                'CAB
+                fichier_destination.Sheets("1Current").Cells(i, 29).Value = fichier_source.Sheets("Data").Cells(j, 132).Value
+                fichier_destination.Sheets("1Current").Cells(i, 30).Value = fichier_source.Sheets("Data").Cells(j, 133).Value
+                fichier_destination.Sheets("1Current").Cells(i, 31).Value = fichier_source.Sheets("Data").Cells(j, 134).Value
+                fichier_destination.Sheets("1Current").Cells(i, 32).Value = fichier_source.Sheets("Data").Cells(j, 135).Value
+                
+                'CAB + NET FDI
+                fichier_destination.Sheets("1Current").Cells(i, 33).Value = fichier_source.Sheets("Data").Cells(j, 138).Value
+                fichier_destination.Sheets("1Current").Cells(i, 34).Value = fichier_source.Sheets("Data").Cells(j, 139).Value
+                fichier_destination.Sheets("1Current").Cells(i, 35).Value = fichier_source.Sheets("Data").Cells(j, 140).Value
+                fichier_destination.Sheets("1Current").Cells(i, 36).Value = fichier_source.Sheets("Data").Cells(j, 141).Value
+                
+                'GDP
+                fichier_destination.Sheets("1Current").Cells(i, 37).Value = fichier_source.Sheets("Data").Cells(j, 16).Value
+                fichier_destination.Sheets("1Current").Cells(i, 38).Value = fichier_source.Sheets("Data").Cells(j, 17).Value
+                
+                'Reserves
+                fichier_destination.Sheets("1Current").Cells(i, 39).Value = fichier_source.Sheets("Data").Cells(j, 215).Value
+
+                
+                'Calcul part Reserves dans GDP
+                If IsEmpty(fichier_destination.Sheets("1Current").Cells(i, 39).Value) = False And fichier_destination.Sheets("1Current").Cells(i, 39).Value <> ".." And IsEmpty(fichier_destination.Sheets("1Current").Cells(i, 37).Value) = False And fichier_destination.Sheets("1Current").Cells(i, 37).Value <> ".." Then
+                    fichier_destination.Sheets("1Current").Cells(i, 40).Value = (fichier_destination.Sheets("1Current").Cells(i, 39).Value / (fichier_destination.Sheets("1Current").Cells(i, 37).Value * 1000)) * 100
+                End If
+                
+                'CPI
+                fichier_destination.Sheets("1Current").Cells(i, 41).Value = fichier_source.Sheets("Data").Cells(j, 28).Value
+                fichier_destination.Sheets("1Current").Cells(i, 42).Value = fichier_source.Sheets("Data").Cells(j, 29).Value
+                fichier_destination.Sheets("1Current").Cells(i, 43).Value = fichier_source.Sheets("Data").Cells(j, 30).Value
+                fichier_destination.Sheets("1Current").Cells(i, 44).Value = fichier_source.Sheets("Data").Cells(j, 31).Value
+                
+                'Unemployment rate
+                fichier_destination.Sheets("1Current").Cells(i, 45).Value = fichier_source.Sheets("Data").Cells(j, 247).Value
+                fichier_destination.Sheets("1Current").Cells(i, 46).Value = fichier_source.Sheets("Data").Cells(j, 248).Value
+                fichier_destination.Sheets("1Current").Cells(i, 47).Value = fichier_source.Sheets("Data").Cells(j, 249).Value
+                
+                'Private Credit
+                fichier_destination.Sheets("1Current").Cells(i, 48).Value = fichier_source.Sheets("Data").Cells(j, 96).Value
+                fichier_destination.Sheets("1Current").Cells(i, 49).Value = fichier_source.Sheets("Data").Cells(j, 97).Value
+                
+                'BSI/MPI
+                fichier_destination.Sheets("1Current").Cells(i, 50).Value = fichier_source.Sheets("Data").Cells(j, 105).Value
+                
+                'NPL
+                fichier_destination.Sheets("1Current").Cells(i, 51).Value = fichier_source.Sheets("Data").Cells(j, 119).Value
+                fichier_destination.Sheets("1Current").Cells(i, 52).Value = fichier_source.Sheets("Data").Cells(j, 120).Value
+                fichier_destination.Sheets("1Current").Cells(i, 53).Value = fichier_source.Sheets("Data").Cells(j, 121).Value
+                
+                'Dollarisation
+                fichier_destination.Sheets("1Current").Cells(i, 54).Value = fichier_source.Sheets("Data").Cells(j, 129).Value
+                
+                'WBW
+                fichier_destination.Sheets("1Current").Cells(i, 55).Value = fichier_source.Sheets("Data").Cells(j, 252).Value
+                fichier_destination.Sheets("1Current").Cells(i, 56).Value = fichier_source.Sheets("Data").Cells(j, 253).Value
+                fichier_destination.Sheets("1Current").Cells(i, 57).Value = fichier_source.Sheets("Data").Cells(j, 254).Value
+                fichier_destination.Sheets("1Current").Cells(i, 58).Value = fichier_source.Sheets("Data").Cells(j, 255).Value
+                fichier_destination.Sheets("1Current").Cells(i, 59).Value = fichier_source.Sheets("Data").Cells(j, 256).Value
+                fichier_destination.Sheets("1Current").Cells(i, 60).Value = fichier_source.Sheets("Data").Cells(j, 257).Value
+                fichier_destination.Sheets("1Current").Cells(i, 61).Value = fichier_source.Sheets("Data").Cells(j, 251).Value
+                
+            End If
+        Next
+    Next
+    
+    'Mise en page
+    Sheets("1Current").Range("C3:BJ" & derL).Borders.LineStyle = xlNone
+    
+    With Sheets("1Current").Range("C3:G" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("I3:L" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("M3:P" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("Q3:T" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("U3:X" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("Y3:AB" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AC3:AF" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AG3:AJ" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AK3:AL" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AM3:AN" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AO3:AR" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AS3:AU" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AV3:AW" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AX3:AX" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("AY3:BA" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("BB3:BB" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("BC3:BJ" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:V" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:BJ3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range("C3:BJ3").Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("1Current").Range("C3:BJ" & derL).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:BJ" & derL).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("1Current").Range("C3:BJ" & derL).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    Sheets("1Current").Range("C4:BJ" & derL).HorizontalAlignment = xlLeft
+    
+    Set rng = Sheets("1Current").Range("C3:BJ" & derL)
+    
+    For Each cell In rng
+        If cell <> "" Then
+            If IsNumeric(cell.Value) Then
+                cell.Value = Round(cell.Value, 2)
+            End If
+        End If
+    Next cell
+    
+    Sheets("1Current").Activate
+    ActiveWindow.FreezePanes = False
+    Range("F1").Select
+    ActiveWindow.FreezePanes = True
+    
+End Sub
+
+Sub CopierCollerValeurs(ws As Worksheet)
+
+    Application.OnTime Now() + TimeValue("00:00:03"), _
+    "ThisWorkbook.CopierCollerValeurs", , True
+    
+    ActiveWorkbook.RefreshAll
+    
+    If IsEmpty(ws.Range("D7")) = False Then
+        Application.OnTime Now() + TimeValue("00:00:03"), _
+        "ThisWorkbook.CopierCollerValeurs", , False
+        ws.Cells.Select
+        Selection.Copy
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+            :=False, Transpose:=False
+    End If
+
+End Sub
+
+Function TabExiste(ws As Worksheet) As Boolean
+
+    TabExiste = ws.ListObjects.Count > 0
+
+End Function
+
+Sub CreerTableau(ws As Worksheet)
+    
+    Dim rg As Range, derniereLigne As Integer, derniereColonne As Integer
+    
+    derniereLigne = ws.Cells(Rows.Count, 3).End(xlUp).Row
+    derniereColonne = ws.Cells(3, Columns.Count).End(xlToLeft).Column
+    
+
+    Set rg = ws.Range(Cells(3, 3), Cells(derniereLigne, derniereColonne))
+    ws.ListObjects.Add(xlSrcRange, rg, XlListObjectHasHeaders:=xlYes).Name = "Tableau_" & ws.Name
+    ws.ListObjects("Tableau_" & ws.Name).TableStyle = "TableStyleMedium18"
+    'ws.Columns.AutoFit
+    
+    Set rg = Nothing
+    Set ws = Nothing
+    
+End Sub
+
+Sub EnleverTableau(ws As Worksheet)
+
+    Dim tbl As ListObject
+
+    For Each tbl In ws.ListObjects
+            tbl.Unlist
+    Next tbl
+
+End Sub
+
+Sub VerifierTrigger()
+
+    Dim derLT, derLD, i, j, k, derC, l As Integer
+    Dim champ, cond1, cond2, condition As String
+    Dim signecond1, signecond2 As String
+    Dim nbrcond1, nbrcond2 As Integer
+    Dim firstLine As String
+    Dim somme_bucket_a As Double
+    Dim somme_bucket_b As Double
+    Dim somme_bucket_c As Double
+    Dim somme_bucket_d As Double
+    Dim moy_bucket_a As Double
+    Dim moy_bucket_b As Double
+    Dim moy_bucket_c As Double
+    Dim moy_bucket_d As Double
+    Dim compteur_a As Integer
+    Dim compteur_b As Integer
+    Dim compteur_c As Integer
+    Dim compteur_d As Integer
+    Dim seuil As Double
+        
+    derLT = Sheets("2Thresholds").Cells(Rows.Count, 3).End(xlUp).Row
+    derLD = ActiveSheet.Cells(Rows.Count, 4).End(xlUp).Row
+    derC = ActiveSheet.Cells(3, Columns.Count).End(xlToLeft).Column
+    
+    Call EnleverTrigger(Sheets("1Current"))
+        
+    For i = 4 To derLT
+        champ = Sheets("2Thresholds").Cells(i, 3).Value
+        cond1 = Sheets("2Thresholds").Cells(i, 4).Value
+        cond2 = Sheets("2Thresholds").Cells(i, 5).Value
+        signecond1 = Left(cond1, 1)
+        signecond2 = Left(cond2, 1)
+        nbrcond1 = Left(Split(cond1, " ")(1), Len(Split(cond1, " ")(1)) - 1)
+        
+        If cond2 <> "" Then
+        nbrcond2 = Left(Split(cond2, " ")(1), Len(Split(cond2, " ")(1)) - 1)
+        Else
+        nbrcond2 = Empty
+        End If
+        
+        ' Boucle à travers les colonnes de la feuille active pour appliquer les conditions
+        For j = 4 To derC
+            If InStr(ActiveSheet.Cells(3, j).Value, Chr(10)) > 0 Then
+                firstLine = Left(ActiveSheet.Cells(3, j).Value, InStr(ActiveSheet.Cells(3, j).Value, Chr(10)) - 1)
+            Else
+                firstLine = ActiveSheet.Cells(3, j).Value
+            End If
+            
+            If champ = firstLine Then
+                For k = 4 To derLD
+                    If IsEmpty(ActiveSheet.Cells(k, j).Value) = False And ActiveSheet.Cells(k, j).Value <> ".." Then
+                        If signecond1 = "<" Then
+                            If CDbl(ActiveSheet.Cells(k, j).Value) < nbrcond1 = True Then
+                                ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                            End If
+                        ElseIf signecond1 = ">" Then
+                            If CDbl(ActiveSheet.Cells(k, j).Value) > nbrcond1 = True Then
+                                ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                            End If
+                        End If
+                    End If
+                Next
+                If cond2 <> "" Then
+                    For k = 4 To derLD
+                        If IsEmpty(ActiveSheet.Cells(k, j).Value) = False And ActiveSheet.Cells(k, j).Value <> ".." Then
+                            If signecond2 = "<" Then
+                                If CDbl(ActiveSheet.Cells(k, j).Value) < nbrcond2 = True Then
+                                    ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                                End If
+                            ElseIf signecond2 = ">" Then
+                                If CDbl(ActiveSheet.Cells(k, j).Value) > nbrcond2 = True Then
+                                    ActiveSheet.Cells(k, j).Interior.ColorIndex = 22
+                                End If
+                            End If
+                        End If
+                    Next
+                End If
+            End If
+        Next
+    Next
+    
+    'On initialise les différents buckets afin de faire la moyenne pour pour les indcateurs World Bank
+    
+    somme_bucket_a = 0
+    moy_bucket_a = 0
+    compteur_a = 0
+    
+    somme_bucket_b = 0
+    moy_bucket_b = 0
+    compteur_b = 0
+    
+    somme_bucket_c = 0
+    moy_bucket_c = 0
+    compteur_c = 0
+    
+    somme_bucket_d = 0
+    moy_bucket_d = 0
+    compteur_d = 0
+    
+    For l = 4 To derC
+        If Sheets("1Current").Cells(l, 61).Value <> "" Then
+            If Sheets("1Current").Cells(l, 62).Value = "AAA" Or Sheets("1Current").Cells(l, 62).Value = "AA+" Or Sheets("1Current").Cells(l, 62).Value = "AA" Or Sheets("1Current").Cells(l, 62).Value = "AA-" Then
+                somme_bucket_a = somme_bucket_a + Sheets("1Current").Cells(l, 61).Value
+                compteur_a = compteur_a + 1
+            ElseIf Sheets("1Current").Cells(l, 62).Value = "A+" Or Sheets("1Current").Cells(l, 62).Value = "A" Or Sheets("1Current").Cells(l, 62).Value = "A-" Then
+                somme_bucket_b = somme_bucket_b + Sheets("1Current").Cells(l, 61).Value
+                compteur_b = compteur_b + 1
+            ElseIf Sheets("1Current").Cells(l, 62).Value = "BBB+" Or Sheets("1Current").Cells(l, 62).Value = "BBB" Or Sheets("1Current").Cells(l, 62).Value = "BBB-" Then
+                somme_bucket_c = somme_bucket_c + Sheets("1Current").Cells(l, 61).Value
+                compteur_c = compteur_c + 1
+            ElseIf Sheets("1Current").Cells(l, 62).Value = "BB+" Or Sheets("1Current").Cells(l, 62).Value = "BB" Or Sheets("1Current").Cells(l, 62).Value = "BB-" Or Sheets("1Current").Cells(l, 62).Value = "B+" Or Sheets("1Current").Cells(l, 62).Value = "B" Or Sheets("1Current").Cells(l, 62).Value = "B-" Or Sheets("1Current").Cells(l, 62).Value = "CCC+" Or Sheets("1Current").Cells(l, 62).Value = "CCC" Or Sheets("1Current").Cells(l, 62).Value = "CCC-" Or Sheets("1Current").Cells(l, 62).Value = "CC" Or Sheets("1Current").Cells(l, 62).Value = "C" Or Sheets("1Current").Cells(l, 62).Value = "D" Or Sheets("1Current").Cells(l, 62).Value = "NR" Then
+                somme_bucket_d = somme_bucket_d + Sheets("1Current").Cells(l, 61).Value
+                compteur_d = compteur_d + 1
+            End If
+        End If
+    Next
+    
+    If compteur_a <> 0 Then
+        moy_bucket_a = somme_bucket_a / compteur_a
+    End If
+    
+    If compteur_b <> 0 Then
+        moy_bucket_b = somme_bucket_b / compteur_b
+    End If
+    
+    If compteur_c <> 0 Then
+        moy_bucket_c = somme_bucket_c / compteur_c
+    End If
+    
+    If compteur_d <> 0 Then
+        moy_bucket_d = somme_bucket_d / compteur_d
+    End If
+    
+    'Ce seuil est aussi tiré de l'onglet 2Thresholds
+    seuil = (Sheets("2Thresholds").Cells(3, 16).Value * 100)
+    
+    'Si Avg of all 6 est inférieur 100-seuil % de la moyenne des pays présentes dans le même bucket alors activer le trigger
+    For m = 4 To derC
+        If ActiveSheet.Cells(m, 61).Value <> "" Then
+            If Sheets("1Current").Cells(m, 62).Value = "AAA" Or Sheets("1Current").Cells(m, 62).Value = "AA+" Or Sheets("1Current").Cells(m, 62).Value = "AA" Or Sheets("1Current").Cells(m, 62).Value = "AA-" Then
+                If Sheets("1Current").Cells(m, 61).Value < ((100 - seuil) * moy_bucket_a) / 100 Then
+                    ActiveSheet.Cells(m, 61).Interior.ColorIndex = 22
+                End If
+            ElseIf Sheets("1Current").Cells(m, 62).Value = "A+" Or Sheets("1Current").Cells(m, 62).Value = "A" Or Sheets("1Current").Cells(m, 62).Value = "A-" Then
+                If Sheets("1Current").Cells(m, 61).Value < ((100 - seuil) * moy_bucket_b) / 100 Then
+                    ActiveSheet.Cells(m, 61).Interior.ColorIndex = 22
+                End If
+            ElseIf Sheets("1Current").Cells(m, 62).Value = "BBB+" Or Sheets("1Current").Cells(m, 62).Value = "BBB" Or Sheets("1Current").Cells(m, 62).Value = "BBB-" Then
+                If Sheets("1Current").Cells(m, 61).Value < ((100 - seuil) * moy_bucket_c) / 100 Then
+                    ActiveSheet.Cells(m, 61).Interior.ColorIndex = 22
+                End If
+            ElseIf Sheets("1Current").Cells(m, 62).Value = "BB+" Or Sheets("1Current").Cells(m, 62).Value = "BB" Or Sheets("1Current").Cells(m, 62).Value = "BB-" Or Sheets("1Current").Cells(m, 62).Value = "B+" Or Sheets("1Current").Cells(m, 62).Value = "B" Or Sheets("1Current").Cells(m, 62).Value = "B-" Or Sheets("1Current").Cells(m, 62).Value = "CCC+" Or Sheets("1Current").Cells(m, 62).Value = "CCC" Or Sheets("1Current").Cells(m, 62).Value = "CCC-" Or Sheets("1Current").Cells(m, 62).Value = "CC" Or Sheets("1Current").Cells(m, 62).Value = "C" Or Sheets("1Current").Cells(m, 62).Value = "D" Or Sheets("1Current").Cells(m, 62).Value = "NR" Then
+                If Sheets("1Current").Cells(m, 61).Value < ((100 - seuil) * moy_bucket_d) / 100 Then
+                    ActiveSheet.Cells(m, 61).Interior.ColorIndex = 22
+                End If
+            End If
+        End If
+    Next
+
+End Sub
+
+Sub EnleverTrigger(ws As Worksheet)
+
+    ws.Range("C4:CM300").Interior.Pattern = xlNone
+    ws.Range("C4:CM300").Interior.TintAndShade = 0
+    ws.Range("C4:CM300").Interior.PatternTintAndShade = 0
+    
+End Sub
+
+Sub SupprimerData(ws As Worksheet)
+    
+    Dim tbl As ListObject
+    
+    For Each tbl In ws.ListObjects
+        tbl.DataBodyRange.Columns(1).Resize(, 32).ClearContents
+    Next tbl
+    
+    Set ws = Nothing
+
+End Sub
+
+Sub SupprimerPage(ws As Worksheet)
+    
+    With Application
+    .ScreenUpdating = False
+    .DisplayAlerts = False
+    End With
+    
+    ws.Delete
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+End Sub
+
+Sub CompterTrigger()
+
+    ' Cette procédure compte et liste dans 3Summary les triggers activés dans la feuille "1Current"
+    
+    Dim derLD, derCD, j, k, l As Integer
+    Dim derniereUpdate As String
+    Dim nb_trigger As Integer
+    Dim liste_trigger As String
+    Dim derniereL As Integer
+    Dim derniereLR As Integer
+    Dim annee_en_cours As Integer
+    Dim cellYear As String
+    Dim position As Integer
+    
+    derniereL = Sheets("0Source").Cells(Rows.Count, 3).End(xlUp).Row
+    derLD = Sheets("1Current").Cells(Rows.Count, 3).End(xlUp).Row
+    derCD = Sheets("1Current").Cells(3, Columns.Count).End(xlToLeft).Column
+    annee_en_cours = Year(Date)
+    
+    derniereUpdate = Format(Now(), "dd.mm.yyyy h:mm AM/PM")
+    
+    With Sheets("3Summary").Range("A1")
+        .Value = "Last update on : " & derniereUpdate
+        .Interior.Color = RGB(112, 48, 160)
+        .BorderAround _
+            ColorIndex:=1, Weight:=xlMedium
+        .Font.Bold = True
+        .HorizontalAlignment = xlCenter
+        .Font.Size = 9
+    End With
+    
+    Sheets("3Summary").Range("A1").Font.Color = RGB(255, 255, 255)
+    
+    ' Définit les en-têtes du tableau de Summary
+    Sheets("3Summary").Range("C3").Value = "ISO Country Code"
+    Sheets("3Summary").Range("C3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("C3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("C3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("C3").Font.Bold = True
+     
+    Sheets("3Summary").Range("D3").Value = "Country Name"
+    Sheets("3Summary").Range("D3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("D3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("D3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("D3").Font.Bold = True
+     
+    Sheets("3Summary").Range("E3").Value = "Number of activated triggers"
+    Sheets("3Summary").Range("E3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("E3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("E3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("E3").Font.Bold = True
+    
+    Sheets("3Summary").Range("F3").Value = "List of activated triggers"
+    Sheets("3Summary").Range("F3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("F3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("F3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("F3").Font.Bold = True
+    
+    Sheets("3Summary").Range("G3").Value = "Last review"
+    Sheets("3Summary").Range("G3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("G3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("G3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("G3").Font.Bold = True
+    
+    Sheets("3Summary").Range("H3").Value = "Preferential treatment"
+    Sheets("3Summary").Range("H3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("H3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("H3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("H3").Font.Bold = True
+    
+    Sheets("3Summary").Range("I3").Value = "BRC Limits"
+    Sheets("3Summary").Range("I3").Interior.Color = RGB(112, 48, 160)
+    Sheets("3Summary").Range("I3").HorizontalAlignment = xlCenter
+    Sheets("3Summary").Range("I3").BorderAround _
+        ColorIndex:=1, Weight:=xlMedium
+    Sheets("3Summary").Range("I3").Font.Bold = True
+    
+    For j = 4 To derLD
+        nb_trigger = 0
+        liste_trigger = ""
+        For k = 9 To derCD
+            position = InStr(1, Sheets("1Current").Cells(3, k).Value, Chr(10))
+            If position > 0 Then
+                cellYear = Trim(Mid(Sheets("1Current").Cells(3, k).Value, position + 1))
+            Else
+                cellYear = "0000"
+            End If
+            If Sheets("1Current").Cells(j, k).Interior.ColorIndex = 22 Then
+                If cellYear = CStr(annee_en_cours) Or Right(Sheets("1Current").Cells(3, k).Value, 6) = "Latest" Or Sheets("1Current").Cells(3, k).Value = "Avg of all 6" Then
+                    If Sheets("1Current").Cells(3, k).Value = "Avg of all 6" Then
+                        nb_trigger = nb_trigger + 1
+                        liste_trigger = liste_trigger & Sheets("1Current").Cells(3, k).Value & " ; "
+                    Else
+                        nb_trigger = nb_trigger + 1
+                        liste_trigger = liste_trigger & Left(Sheets("1Current").Cells(3, k).Value, InStr(Sheets("1Current").Cells(3, k).Value, Chr(10)) - 1) & " ; "
+                    End If
+                End If
+            End If
+        Next
+        
+        Sheets("3Summary").Cells(j, 3).Value = Sheets("1Current").Cells(j, 4).Value
+        Sheets("3Summary").Cells(j, 4).Value = Sheets("1Current").Cells(j, 5).Value
+        Sheets("3Summary").Cells(j, 5).Value = nb_trigger
+        Sheets("3Summary").Cells(j, 6).Value = liste_trigger
+        Sheets("3Summary").Cells(j, 7).Value = Sheets("0Source").Cells(j, 10).Value
+        Sheets("3Summary").Cells(j, 8).Value = Sheets("0Source").Cells(j, 11).Value
+        Sheets("3Summary").Cells(j, 9).Value = Sheets("0Source").Cells(j, 12).Value
+        Sheets("1Current").Cells(j, 8).Value = nb_trigger
+    Next
+    
+    ' Appelle la fonction pour trier le tableau par ordre décroissant sur le nombre de triggers déclenché
+    Call TriTableauTriggers
+    
+    derniereLR = Sheets("3Summary").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    ' Formatage du tableau avec les bordures
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+        
+    With Sheets("3Summary").Range("C3:I" & derniereLR).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlMedium
+    End With
+    
+    With Sheets("3Summary").Range("C4:I" & derniereLR).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(0, 0, 0)
+        .Weight = xlThin
+    End With
+    
+    With Sheets("3Summary").Range("C3:I3").Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .Color = RGB(255, 255, 255)
+        .Weight = xlThin
+    End With
+    
+    Sheets("3Summary").Range("C4:I" & derniereLR).Interior.Color = RGB(255, 255, 255)
+    
+    For l = 4 To derniereLR Step 2
+        Sheets("3Summary").Range("C" & l & ":I" & l).Interior.Color = RGB(217, 217, 217)
+    Next l
+    
+    Sheets("3Summary").Activate
+
+End Sub
+
+Sub TriTableauTriggers()
+        
+    ' Trie les données dans la feuille "3Summary" en fonction du nombre de déclencheurs négatifs (ordre décroissant)
+    
+    Dim ws As Worksheet
+    Dim lMaxRows As Integer
+    Set ws = ActiveWorkbook.Worksheets("3Summary")
+    
+    lMaxRows = Sheets("3Summary").Cells(Rows.Count, 3).End(xlUp).Row
+    
+    With ws.Sort.SortFields
+        .Clear
+        .Add Key:=ws.Range("E3:E" & lMaxRows), SortOn:=xlSortOnValues, _
+             Order:=xlDescending, DataOption:=xlSortNormal
+    End With
+    
+    With ws.Sort
+        .SetRange ws.Range("C3:Q" & lMaxRows)
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+End Sub
+
+Function FeuilleExiste(Nom As String) As Boolean
+    
+    Dim sh As Object
+ 
+    For Each sh In Sheets
+        If UCase(sh.Name) = UCase(Nom) Then
+            FeuilleExiste = True
+            Exit For
+        End If
+    Next
+End Function
+
+Sub Automatisation()
+    
+    Call Etape1
+    Application.OnTime Now + TimeValue("00:00:20"), "ThisWorkbook.VerifierTrigger"
+    Application.OnTime Now + TimeValue("00:00:30"), "ThisWorkbook.CompterTrigger"
+
+End Sub
+
+Sub ArchivageFichier()
+
+    Dim cheminRepertoire As String
+    Dim nomFichierUtilisateur As String
+    Dim nouvelleCheminComplet As String
+    Dim wbCopie As Workbook
+    Dim ws As Worksheet
+    Dim nomParDefaut As String
+
+    ' Définir le répertoire de sauvegarde (modifiez ce chemin selon vos besoins)
+    cheminRepertoire = "\\Bnet\shares\CCA\000 - Suivi Dynamique\Archives-Souverains-Indicators\"
+    
+    ' Vérifier si le répertoire existe
+    If Dir(cheminRepertoire, vbDirectory) = "" Then
+        MsgBox "Le répertoire spécifié n'existe pas.", vbExclamation
+        Exit Sub
+    End If
+
+    ' Définir le nom par défaut pour l'InputBox
+    nomParDefaut = "Archives-Souverains-T"
+    
+    ' Demander à l'utilisateur d'entrer le nom du fichier avec un nom par défaut proposé
+    nomFichierUtilisateur = InputBox("Entrez le nom du fichier à sauvegarder (sans extension) :", "Nom du fichier", nomParDefaut)
+    
+    ' Si l'utilisateur n'a rien entré, arrêter la macro
+    If nomFichierUtilisateur = "" Then
+        MsgBox "Le nom du fichier ne peut pas être vide. Veuillez entrer un nom valide.", vbExclamation
+        Exit Sub
+    End If
+
+    ' Créer le chemin complet avec le nom de fichier entré par l'utilisateur
+    nouvelleCheminComplet = cheminRepertoire & nomFichierUtilisateur & ".xlsm"
+    
+    ' Si un fichier portant le même nom existe déjà, il est supprimé
+    If Dir(nouvelleCheminComplet) <> "" Then
+        Kill nouvelleCheminComplet
+    End If
+
+    ' Sauvegarder une copie du fichier
+    ThisWorkbook.SaveCopyAs nouvelleCheminComplet
+
+    ' Ouvrir la copie du fichier
+    Set wbCopie = Workbooks.Open(nouvelleCheminComplet)
+    
+    ' Supprimer tous les onglets sauf "1Current", "2Thresholds", et "3Summary"
+    For Each ws In wbCopie.Worksheets
+        If ws.Name <> "1Current" And ws.Name <> "2Thresholds" And ws.Name <> "3Summary" Then
+            Application.DisplayAlerts = False
+            ws.Delete
+            Application.DisplayAlerts = True
+        End If
+    Next ws
+
+    ' Renommer les onglets
+    wbCopie.Sheets("1Current").Name = "Datas"
+    wbCopie.Sheets("2Thresholds").Name = "Thresholds"
+    wbCopie.Sheets("3Summary").Name = "Summary"
+
+    ' Réorganiser les onglets pour que "Summary" soit en première position
+    wbCopie.Sheets("Summary").Move Before:=wbCopie.Sheets(1)
+    
+    Call SupprimerBoutons(wbCopie.Sheets("Datas"))
+
+    ' Sauvegarder et fermer le fichier
+    wbCopie.Close SaveChanges:=True
+
+    ' Avertir l'utilisateur
+    MsgBox "La version modifiée a été sauvegardée avec succès dans " & nouvelleCheminComplet, vbInformation
+    
+End Sub
+
+Sub SupprimerBoutons(ws As Worksheet)
+
+    Dim shp As Shape
+
+    ' Parcourir toutes les formes de la feuille et supprimer les boutons
+    For Each shp In ws.Shapes
+        If shp.Type = msoFormControl Then
+            If shp.FormControlType = xlButtonControl Then
+                shp.Delete
+            End If
+        End If
+    Next shp
+    
+End Sub
